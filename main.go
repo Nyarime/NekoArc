@@ -157,12 +157,13 @@ func main() {
 		log, count, ok, err := doTest(path)
 		if err != nil {
 			walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
+			log.Show(mw, "Test")
 		} else if ok {
 			walk.MsgBox(mw, "Test", fmt.Sprintf("OK: %d files, integrity verified", count), walk.MsgBoxIconInformation)
 		} else {
 			walk.MsgBox(mw, "Test", fmt.Sprintf("FAILED: %d files, archive corrupted", count), walk.MsgBoxIconWarning)
+			log.Show(mw, "Test")
 		}
-		log.Show(mw, "Test")
 	}
 
 	doRepairFn := func() {
