@@ -39,9 +39,12 @@ func main() {
 	var model *FileModel
 	var tb *walk.ToolBar
 
+	cfg := loadConfig()
 	currentDir := ""
 	home, _ := os.UserHomeDir()
-	if home != "" {
+	if cfg.LastDir != "" {
+		currentDir = cfg.LastDir
+	} else if home != "" {
 		currentDir = home
 	}
 
@@ -51,6 +54,8 @@ func main() {
 
 	navigate := func(dir string) {
 		navStack.EnterDir(dir)
+		cfg.LastDir = dir
+		saveConfig(cfg)
 		// Fix drive paths: D: → D:\
 		if len(dir) == 2 && dir[1] == ':' {
 			dir += string(filepath.Separator)
@@ -77,6 +82,8 @@ func main() {
 
 	navigateArchive := func(path string) {
 		navStack.EnterArchive(path)
+		cfg.AddRecentFile(path)
+		saveConfig(cfg)
 		currentDir = path
 		if addressBar != nil {
 			addressBar.SetText(currentDir)
@@ -92,6 +99,8 @@ func main() {
 
 	navigateGenericArchive := func(path string) {
 		navStack.EnterArchive(path)
+		cfg.AddRecentFile(path)
+		saveConfig(cfg)
 		currentDir = path
 		if addressBar != nil {
 			addressBar.SetText(currentDir)
@@ -236,7 +245,6 @@ func main() {
 
 	doAdd := func() {
 		if model.inArchive {
-			// Add files to current archive
 			dlg := new(walk.FileDialog)
 			dlg.Title = "Add files to archive"
 			if ok, _ := dlg.ShowOpenMultiple(mw); ok && len(dlg.FilePaths) > 0 {
@@ -251,10 +259,17 @@ func main() {
 		}
 		paths := getSelectedPaths()
 		if len(paths) == 0 {
-			walk.MsgBox(mw, "Add", "Select files or folders in the file browser first", walk.MsgBoxIconInformation)
-			return
+			// No selection: open file dialog
+			dlg := new(walk.FileDialog)
+			dlg.Title = "Select files to compress"
+			dlg.FilePath = currentDir
+			if ok, _ := dlg.ShowOpenMultiple(mw); ok && len(dlg.FilePaths) > 0 {
+				paths = dlg.FilePaths
+			}
 		}
-		showPackDialog(mw, paths)
+		if len(paths) > 0 {
+			showPackDialog(mw, paths)
+		}
 	}
 
 	doExtract := func() {
