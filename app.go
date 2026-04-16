@@ -203,10 +203,10 @@ func (a *App) OpenMultipleFilesDialog() []string {
 
 func (a *App) OpenFileDialog() string {
 	path, err := rt.OpenFileDialog(a.ctx, rt.OpenDialogOptions{
-		Title: "Select file or archive",
+		Title: "Select file",
 		Filters: []rt.FileFilter{
-			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
 			{DisplayName: "All Files", Pattern: "*"},
+			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
 		},
 	})
 	if err != nil {
