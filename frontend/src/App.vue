@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 import { Pack, EstimateSize, Extract, Repair, Test, OpenFileDialog, OpenMultipleFilesDialog, OpenDirectoryDialog, GetFileInfo, Version, GetStartupFile, GetStartupAction } from '../wailsjs/go/main/App'
 
 const currentView = ref('home')
@@ -168,6 +169,30 @@ async function doTest() {
 }
 
 onMounted(async () => {
+  // Listen for file drops
+  EventsOn('wails:file-drop', async (paths) => {
+    if (currentView.value === 'home') {
+      // Pack: add dropped files
+      for (const p of paths) {
+        const info = await GetFileInfo(p)
+        if (info && !packFiles.value.find(f => f.path === p)) {
+          packFiles.value.push(info)
+        }
+      }
+      await updateEstimate()
+    } else if (currentView.value === 'extract') {
+      // Extract: set as extract file
+      if (paths.length > 0) {
+        extractFile.value = await GetFileInfo(paths[0])
+      }
+    } else if (currentView.value === 'repair') {
+      // Repair: set as repair file
+      if (paths.length > 0 && paths[0].endsWith('.nya')) {
+        repairFile.value = await GetFileInfo(paths[0])
+      }
+    }
+  })
+
   const file = await GetStartupFile()
   const action = await GetStartupAction()
   if (file) {
@@ -180,7 +205,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-screen bg-gray-950 text-white">
+  <div class="flex flex-col h-screen bg-gray-950 text-white" style="--wails-drop-target: drop">
     <header class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between select-none" style="--wails-draggable:drag">
       <div class="flex items-center gap-3">
         <span class="text-2xl">🐱</span>
@@ -293,7 +318,7 @@ onMounted(async () => {
 
         <div v-if="!packFiles.length" class="border-2 border-dashed border-gray-700 rounded-2xl p-12 text-center">
           <div class="text-5xl mb-4">📦</div>
-          <p class="text-gray-400">Click <b>Add Files</b> or <b>Add Folder</b> to start</p>
+          <p class="text-gray-400">Drop files here or click <b>Add Files</b> / <b>Add Folder</b></p>
         </div>
 
         <!-- Result -->
