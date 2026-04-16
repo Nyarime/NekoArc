@@ -1,7 +1,25 @@
 export namespace main {
 	
+	export class Estimate {
+	    inputSize: number;
+	    outputSize: number;
+	    fecSize: number;
+	    recoveryRate: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Estimate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.inputSize = source["inputSize"];
+	        this.outputSize = source["outputSize"];
+	        this.fecSize = source["fecSize"];
+	        this.recoveryRate = source["recoveryRate"];
+	    }
+	}
 	export class PackOptions {
-	    input: string;
+	    inputs: string[];
 	    output: string;
 	    format: string;
 	    level: number;
@@ -16,7 +34,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.input = source["input"];
+	        this.inputs = source["inputs"];
 	        this.output = source["output"];
 	        this.format = source["format"];
 	        this.level = source["level"];

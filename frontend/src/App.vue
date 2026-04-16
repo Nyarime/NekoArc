@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Pack, Extract, Repair, Test, OpenFileDialog, OpenMultipleFilesDialog, OpenDirectoryDialog, GetFileInfo, Version, GetStartupFile, GetStartupAction } from '../wailsjs/go/main/App'
+import { Pack, EstimateSize, Extract, Repair, Test, OpenFileDialog, OpenMultipleFilesDialog, OpenDirectoryDialog, GetFileInfo, Version, GetStartupFile, GetStartupAction } from '../wailsjs/go/main/App'
 
 const currentView = ref('home')
 const loading = ref(false)
@@ -15,6 +15,7 @@ const fec = ref(100)
 const password = ref('')
 const solid = ref(false)
 const sfx = ref(false)
+const estimate = ref(null)
 
 // Extract state
 const extractFile = ref(null)
@@ -39,6 +40,7 @@ async function addFiles() {
       }
     }
   }
+  await updateEstimate()
 }
 
 async function addFolder() {
@@ -48,6 +50,15 @@ async function addFolder() {
     if (info && !packFiles.value.find(f => f.path === p)) {
       packFiles.value.push(info)
     }
+  }
+}
+
+async function updateEstimate() {
+  if (packFiles.value.length > 0) {
+    const paths = packFiles.value.map(f => f.path)
+    estimate.value = await EstimateSize(paths, parseInt(fec.value))
+  } else {
+    estimate.value = null
   }
 }
 
@@ -73,7 +84,7 @@ async function doPack() {
   try {
     // Pack first item (TODO: multi-file pack)
     const r = await Pack({
-      input: packFiles.value[0].path,
+      inputs: packFiles.value.map(f => f.path),
       output: packDir.value,
       format: format.value,
       level: parseInt(level.value),
@@ -113,7 +124,7 @@ async function doExtract() {
   loading.value = true
   result.value = null
   try {
-    const r = await Extract(extractFile.value.path)
+    const r = await Extract(extractFile.value.path, extractDir.value)
     result.value = r
   } catch(e) {
     result.value = { success: false, message: String(e), duration: 0 }
@@ -264,6 +275,14 @@ onMounted(async () => {
               <p class="text-sm text-gray-300">{{ packDir || 'Same directory' }}</p>
             </div>
             <button @click="choosePackDir" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-xs transition">📁 Browse</button>
+          </div>
+
+          <!-- Estimate -->
+          <div v-if="estimate" class="bg-gray-800 rounded-lg p-3 text-xs text-gray-400 flex justify-between">
+            <span>Input: {{ formatSize(estimate.inputSize) }}</span>
+            <span>Est. output: {{ formatSize(estimate.outputSize) }}</span>
+            <span>FEC: {{ formatSize(estimate.fecSize) }}</span>
+            <span class="text-green-400">Recovery: {{ estimate.recoveryRate }}</span>
           </div>
 
           <button @click="doPack" :disabled="loading"
