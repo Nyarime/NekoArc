@@ -119,10 +119,35 @@ func main() {
 			if strings.HasSuffix(strings.ToLower(item.Name), ".nya") {
 				navigateArchive(item.Path)
 			} else {
-				// Other archives: list contents via archiver
 				navigateGenericArchive(item.Path)
 			}
-		} else if !model.inArchive {
+		} else if model.inArchive {
+			// Inside archive: extract file to temp and open
+			if isArchiveFile(item.Name) {
+				// Nested archive: try to browse
+				// Extract to temp first
+				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
+				r, err := nya.Open(model.archivePath)
+				if err == nil {
+					r.Extract(tmpDir)
+					extracted := filepath.Join(tmpDir, item.Name)
+					if _, err := os.Stat(extracted); err == nil {
+						navigateGenericArchive(extracted)
+					}
+				}
+			} else {
+				// Regular file: extract to temp and open
+				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
+				r, err := nya.Open(model.archivePath)
+				if err == nil {
+					r.Extract(tmpDir)
+					extracted := filepath.Join(tmpDir, item.Name)
+					if _, err := os.Stat(extracted); err == nil {
+						exec.Command("cmd", "/c", "start", "", extracted).Start()
+					}
+				}
+			}
+		} else {
 			exec.Command("cmd", "/c", "start", "", item.Path).Start()
 		}
 	}
