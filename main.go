@@ -36,6 +36,12 @@ func main() {
 		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
 			dir = resolved
 		}
+		// Fix drive letter paths: D:. → D:		if len(dir) == 3 && dir[1] == ':' && dir[2] == '.' {
+			dir = dir[:2] + string(filepath.Separator)
+		}
+		if len(dir) == 2 && dir[1] == ':' {
+			dir = dir + string(filepath.Separator)
+		}
 		currentDir = dir
 		if addressBar != nil {
 			addressBar.SetText(currentDir)
@@ -877,13 +883,13 @@ func (m *FileModel) Image(row int) interface{} {
 		}
 		return nil // no icon for virtual dirs
 	}
-	// For archive entries, return the path string as-is
-	// walk will extract icon by extension even for non-existent paths
+	// For archive entries, return a temp path with correct extension
 	if m.inArchive {
-		// Use extension to get icon: walk resolves via SHGetFileInfo with SHGFI_USEFILEATTRIBUTES
 		ext := filepath.Ext(item.Name)
 		if ext != "" {
-			return "file" + ext // e.g. "file.docx" - walk uses extension only
+			// Use Windows temp dir to create valid path for icon lookup
+			tmpDir := os.TempDir()
+			return filepath.Join(tmpDir, "nekoarc_icon" + ext)
 		}
 		return nil
 	}
