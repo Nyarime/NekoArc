@@ -390,6 +390,7 @@ func showPackDialog(owner walk.Form, files []string) {
 	var passwordConfirm *walk.LineEdit
 	var solidCheck *walk.CheckBox
 	var sfxCheck *walk.CheckBox
+	var splitEdit *walk.LineEdit
 	var destDirEdit *walk.LineEdit
 
 	var totalSize int64
@@ -467,6 +468,14 @@ func showPackDialog(owner walk.Form, files []string) {
 									CheckBox{AssignTo: &sfxCheck, Text: "Create SFX (self-extracting) archive"},
 								},
 							},
+							GroupBox{
+								Title:  "Split to volumes",
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									Label{Text: "Volume size (1G, 500M, 0=no split):"},
+									LineEdit{AssignTo: &splitEdit, Text: "0"},
+								},
+							},
 							Label{Text: fmt.Sprintf("Selected: %d files, %s", fileCount, humanSize(totalSize))},
 						},
 					},
@@ -523,6 +532,7 @@ func showPackDialog(owner walk.Form, files []string) {
 								Password: passwordEdit.Text(),
 								Solid:    solidCheck.Checked(),
 								SFX:      sfxCheck.Checked(),
+								SplitSize: splitEdit.Text(),
 							})
 							if err != nil {
 								walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)

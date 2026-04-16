@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -75,7 +76,8 @@ type PackOptions struct {
 	FEC      int
 	Password string
 	Solid    bool
-	SFX      bool
+	SFX       bool
+	SplitSize string // e.g. "1G", "500M"
 }
 
 func doPack(opts PackOptions) (*DiagLog, error) {
@@ -101,19 +103,29 @@ func doPack(opts PackOptions) (*DiagLog, error) {
 	log.Info(fmt.Sprintf("Creating archive: %s", output), "")
 	log.Info(fmt.Sprintf("Compression level: %d, FEC: %d%%", level, fec), "")
 
-	f, err := os.Create(output)
-	if err != nil {
-		log.Error("Cannot create output file: "+err.Error(), output)
-		return log, err
+	var ws io.WriteSeeker
+
+	splitSize := nya.ParseVolumeSize(opts.SplitSize)
+	if splitSize > 0 {
+		ws = nya.NewVolumeWriter(output, splitSize)
+		log.Info(fmt.Sprintf("Split volume: %s per volume", opts.SplitSize), output)
+	} else {
+		f, err := os.Create(output)
+		if err != nil {
+			log.Error("Cannot create output file: "+err.Error(), output)
+			return log, err
+		}
+		defer f.Close()
+		ws = f
 	}
 
 	var w *nya.Writer
 	if opts.Password != "" {
-		w = nya.NewWriterOpts(f, fec, level, opts.Solid, []byte(opts.Password))
+		w = nya.NewWriterOpts(ws, fec, level, opts.Solid, []byte(opts.Password))
 	} else if opts.Solid {
-		w = nya.NewWriterOpts(f, fec, level, true)
+		w = nya.NewWriterOpts(ws, fec, level, true)
 	} else {
-		w = nya.NewWriter(f, fec, level)
+		w = nya.NewWriter(ws, fec, level)
 	}
 
 	for _, input := range opts.Inputs {
@@ -125,7 +137,9 @@ func doPack(opts PackOptions) (*DiagLog, error) {
 		log.Info("Added", input)
 	}
 	w.Close()
-	f.Close()
+	if c, ok := ws.(interface{Close()error}); ok {
+		c.Close()
+	}
 
 	if opts.SFX {
 		nya.CreateSFX(output, "")
