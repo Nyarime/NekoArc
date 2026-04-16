@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"github.com/bodgit/sevenzip"
 	"fmt"
 	"io"
 	"os"
@@ -282,6 +283,26 @@ func listGenericArchive(path string) ([]FileEntry, error) {
 				Size:    int64(zf.UncompressedSize64),
 				IsDir:   zf.FileInfo().IsDir(),
 				ModTime: zf.Modified.Format("2006-01-02 15:04"),
+			})
+		}
+		return entries, nil
+	}
+
+	// 7Z: use bodgit/sevenzip (pure Go)
+	if strings.HasSuffix(low, ".7z") {
+		f, err := os.Open(path)
+		if err != nil { return nil, err }
+		defer f.Close()
+		fi, _ := f.Stat()
+		sz, err := sevenzip.NewReader(f, fi.Size())
+		if err != nil { return nil, err }
+		for _, sf := range sz.File {
+			entries = append(entries, FileEntry{
+				Name:    sf.Name,
+				Path:    sf.Name,
+				Size:    int64(sf.UncompressedSize),
+				IsDir:   sf.FileInfo().IsDir(),
+				ModTime: sf.Modified.Format("2006-01-02 15:04"),
 			})
 		}
 		return entries, nil
