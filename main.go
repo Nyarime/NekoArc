@@ -480,11 +480,11 @@ func showPackDialog(owner walk.Form, files []string) {
 								Layout: Grid{Columns: 2},
 								Children: []Widget{
 									Label{Text: "Recovery data (%):"},
-									NumberEdit{AssignTo: &fecEdit, Value: 100, MinValue: 0, MaxValue: 500},
+									NumberEdit{AssignTo: &fecEdit, Value: 3, MinValue: 0, MaxValue: 500},
 									Label{Text: "", ColumnSpan: 2},
-									Label{Text: "0% = no recovery data", ColumnSpan: 2},
-									Label{Text: "100% = can recover from 50% corruption", ColumnSpan: 2},
-									Label{Text: "200% = can recover from 67% corruption", ColumnSpan: 2},
+									Label{Text: "0% = no recovery data (not recommended)", ColumnSpan: 2},
+									Label{Text: "10% = can recover minor corruption (recommended)", ColumnSpan: 2},
+									Label{Text: "100% = can recover from 50% corruption (extreme)", ColumnSpan: 2},
 								},
 							},
 							GroupBox{

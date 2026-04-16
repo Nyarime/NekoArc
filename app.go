@@ -96,7 +96,7 @@ func doPack(opts PackOptions) (*DiagLog, error) {
 	level := opts.Level
 	if level == 0 { level = 9 }
 	fec := opts.FEC
-	if fec == 0 { fec = 100 }
+	if fec == 0 { fec = 3 }
 
 	log.Info(fmt.Sprintf("Creating archive: %s", output), "")
 	log.Info(fmt.Sprintf("Compression level: %d, FEC: %d%%", level, fec), "")
