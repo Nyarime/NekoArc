@@ -32,15 +32,16 @@ func main() {
 	initIcons()
 
 	navigate := func(dir string) {
+		// Fix drive paths: D: → D:\
+		if len(dir) == 2 && dir[1] == ':' {
+			dir += string(filepath.Separator)
+		}
+		if len(dir) == 3 && dir[1] == ':' && dir[2] == '.' {
+			dir = dir[:2] + string(filepath.Separator)
+		}
 		// Fix path case on Windows (D:\nekoarc → D:\NekoArc)
 		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
 			dir = resolved
-		}
-// Fix drive letter paths: D:. to D:\
-			dir = dir[:2] + string(filepath.Separator)
-		}
-		if len(dir) == 2 && dir[1] == ':' {
-			dir = dir + string(filepath.Separator)
 		}
 		currentDir = dir
 		if addressBar != nil {
@@ -883,13 +884,10 @@ func (m *FileModel) Image(row int) interface{} {
 		}
 		return nil // no icon for virtual dirs
 	}
-	// For archive entries, return a temp path with correct extension
 	if m.inArchive {
 		ext := filepath.Ext(item.Name)
 		if ext != "" {
-			// Use Windows temp dir to create valid path for icon lookup
-			tmpDir := os.TempDir()
-			return filepath.Join(tmpDir, "nekoarc_icon" + ext)
+			return filepath.Join(os.TempDir(), "nekoarc_icon"+ext)
 		}
 		return nil
 	}
