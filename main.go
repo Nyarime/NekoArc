@@ -103,8 +103,39 @@ func main() {
 	}
 
 	goUp := func() {
-		if model.inArchive {
-			navigate(filepath.Dir(model.archivePath))
+		if model.inArchive && model.archiveSubDir != "" {
+			// Go up within archive subdirectory
+			parent := ""
+			if idx := strings.LastIndex(model.archiveSubDir, "/"); idx >= 0 {
+				parent = model.archiveSubDir[:idx]
+			}
+			model.NavigateArchiveDir(parent)
+			if table != nil { table.Invalidate() }
+		} else if model.inArchive {
+			// Exit archive: go to the directory containing the archive
+			// Use currentDir (logical path) to find parent
+			parent := filepath.Dir(currentDir)
+			// If parent looks like a temp path, use the real archive's parent
+			if strings.Contains(parent, "nekoarc-open") || strings.Contains(parent, "nekoarc-browse") {
+				// We're in a nested archive - go to parent's parent dir
+				// currentDir is like D:\file.nya\inner.tar.gz
+				// We want to go to D:\file.nya (re-open parent)
+				parts := strings.Split(currentDir, string(filepath.Separator))
+				for i := len(parts) - 1; i >= 0; i-- {
+					if isArchiveFile(parts[i]) {
+						parentPath := strings.Join(parts[:i+1], string(filepath.Separator))
+						if _, err := os.Stat(parentPath); err == nil {
+							if strings.HasSuffix(strings.ToLower(parentPath), ".nya") {
+								navigateArchive(parentPath)
+							} else {
+								navigateGenericArchive(parentPath)
+							}
+							return
+						}
+					}
+				}
+			}
+			navigate(parent)
 		} else if currentDir != "" {
 			parent := filepath.Dir(currentDir)
 			if parent == currentDir {
@@ -181,7 +212,7 @@ func main() {
 					if mw != nil { mw.SetTitle(item.Name + " - NekoArc") }
 				}
 			} else {
-				// Regular file: check if already on disk (extracted archive)
+				// Regular file: check if already on disk
 				if filepath.IsAbs(item.Path) {
 					if _, err := os.Stat(item.Path); err == nil {
 						exec.Command("cmd", "/c", "start", "", item.Path).Start()
@@ -190,14 +221,22 @@ func main() {
 				}
 				// Extract from archive to temp
 				tmpDir := extractToTemp()
-				// Try direct path
-				extracted := filepath.Join(tmpDir, item.Name)
-				// Also try with subdir prefix
-				if model.archiveSubDir != "" {
-					extracted = filepath.Join(tmpDir, model.archiveSubDir, item.Name)
+				// Search for the file in extracted content
+				var found string
+				filepath.Walk(tmpDir, func(p string, info os.FileInfo, err error) error {
+					if err != nil { return nil }
+					if !info.IsDir() && filepath.Base(p) == item.Name {
+						found = p
+						return filepath.SkipDir
+					}
+					return nil
+				})
+				if found == "" {
+					// Try exact path
+					found = filepath.Join(tmpDir, item.Name)
 				}
-				if _, err := os.Stat(extracted); err == nil {
-					exec.Command("cmd", "/c", "start", "", extracted).Start()
+				if _, err := os.Stat(found); err == nil {
+					exec.Command("cmd", "/c", "start", "", found).Start()
 				}
 			}
 		} else {
