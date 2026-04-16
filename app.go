@@ -78,9 +78,10 @@ type PackOptions struct {
 	SFX      bool
 }
 
-func doPack(opts PackOptions) error {
+func doPack(opts PackOptions) (*DiagLog, error) {
+	log := NewDiagLog()
 	if len(opts.Inputs) == 0 {
-		return fmt.Errorf("no files selected")
+		return log, fmt.Errorf("no files selected")
 	}
 
 	firstName := filepath.Base(opts.Inputs[0])
@@ -97,9 +98,13 @@ func doPack(opts PackOptions) error {
 	fec := opts.FEC
 	if fec == 0 { fec = 100 }
 
+	log.Info(fmt.Sprintf("Creating archive: %s", output), "")
+	log.Info(fmt.Sprintf("Compression level: %d, FEC: %d%%", level, fec), "")
+
 	f, err := os.Create(output)
 	if err != nil {
-		return err
+		log.Error("Cannot create output file: "+err.Error(), output)
+		return log, err
 	}
 
 	var w *nya.Writer
@@ -113,45 +118,90 @@ func doPack(opts PackOptions) error {
 
 	for _, input := range opts.Inputs {
 		if err := w.AddFile(input); err != nil {
+			log.Error("Failed to add: "+err.Error(), input)
 			f.Close()
-			return err
+			return log, err
 		}
+		log.Info("Added", input)
 	}
 	w.Close()
 	f.Close()
 
 	if opts.SFX {
 		nya.CreateSFX(output, "")
+		log.Info("Created SFX", output)
 	}
-	return nil
+
+	si, _ := os.Stat(output)
+	if si != nil {
+		log.Info(fmt.Sprintf("Archive size: %s", humanSize(si.Size())), output)
+	}
+	return log, nil
 }
 
-func doExtract(archivePath, destDir string) error {
+func doExtract(archivePath, destDir string) (*DiagLog, error) {
+	log := NewDiagLog()
 	if destDir == "" {
 		destDir = filepath.Dir(archivePath)
 	}
+	log.Info("Extracting to: "+destDir, archivePath)
 	r, err := nya.Open(archivePath)
 	if err != nil {
-		return err
+		log.Error("Cannot open archive: "+err.Error(), archivePath)
+		return log, err
 	}
-	return r.Extract(destDir)
+	for _, f := range r.List() {
+		log.Info("Extracting", f.Path)
+	}
+	if err := r.Extract(destDir); err != nil {
+		log.Error("Extract failed: "+err.Error(), archivePath)
+		return log, err
+	}
+	log.Info(fmt.Sprintf("Extracted %d files", len(r.List())), destDir)
+	return log, nil
 }
 
-func doTest(path string) (int, bool, error) {
+func doTest(path string) (*DiagLog, int, bool, error) {
+	log := NewDiagLog()
 	r, err := nya.Open(path)
 	if err != nil {
-		return 0, false, err
+		log.Error("Cannot open: "+err.Error(), path)
+		return log, 0, false, err
 	}
-	count := len(r.List())
-	return count, r.Verify(), nil
+	files := r.List()
+	for _, f := range files {
+		log.Info(fmt.Sprintf("Testing %s (%s)", f.Path, humanSize(int64(f.OriginalSize))), path)
+	}
+	ok := r.Verify()
+	if ok {
+		log.Info("All integrity checks passed", path)
+	} else {
+		log.Error("Archive integrity check FAILED", path)
+	}
+	return log, len(files), ok, nil
 }
 
-func doRepair(path string) (total, damaged, repaired int, err error) {
+func doRepair(path string) (*DiagLog, int, int, int, error) {
+	log := NewDiagLog()
+	log.Info("Repairing archive", path)
 	result, err := nya.Repair(path, "")
 	if err != nil {
-		return 0, 0, 0, err
+		log.Error("Repair failed: "+err.Error(), path)
+		return log, 0, 0, 0, err
 	}
-	return result.TotalChunks, result.CorruptedChunks, result.RepairedChunks, nil
+	if result.CorruptedChunks == 0 {
+		log.Info(fmt.Sprintf("%d chunks verified, no damage", result.TotalChunks), path)
+	} else {
+		log.Warn(fmt.Sprintf("%d damaged chunks found", result.CorruptedChunks), path)
+		if result.RepairedChunks > 0 {
+			log.Info(fmt.Sprintf("%d chunks repaired", result.RepairedChunks), path)
+		}
+		failed := result.CorruptedChunks - result.RepairedChunks
+		if failed > 0 {
+			log.Error(fmt.Sprintf("%d chunks could not be repaired", failed), path)
+		}
+	}
+	return log, result.TotalChunks, result.CorruptedChunks, result.RepairedChunks, nil
 }
 
 func humanSize(b int64) string {

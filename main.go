@@ -149,7 +149,7 @@ func main() {
 		if path == "" {
 			return
 		}
-		count, ok, err := doTest(path)
+		log, count, ok, err := doTest(path)
 		if err != nil {
 			walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
 		} else if ok {
@@ -157,6 +157,7 @@ func main() {
 		} else {
 			walk.MsgBox(mw, "Test", fmt.Sprintf("FAILED: %d files, archive corrupted", count), walk.MsgBoxIconWarning)
 		}
+		log.Show(mw, "Test")
 	}
 
 	doRepairFn := func() {
@@ -164,7 +165,7 @@ func main() {
 		if path == "" {
 			return
 		}
-		total, damaged, repaired, err := doRepair(path)
+		log, total, damaged, repaired, err := doRepair(path)
 		if err != nil {
 			walk.MsgBox(mw, "Repair", err.Error(), walk.MsgBoxIconError)
 		} else if damaged == 0 {
@@ -172,6 +173,7 @@ func main() {
 		} else {
 			walk.MsgBox(mw, "Repair", fmt.Sprintf("%d chunks, %d damaged, %d repaired", total, damaged, repaired), walk.MsgBoxIconInformation)
 		}
+		log.Show(mw, "Repair")
 	}
 
 	doInfoFn := func() {
@@ -435,7 +437,7 @@ func showPackDialog(owner walk.Form, files []string) {
 							fdlg := new(walk.FileDialog)
 							fdlg.Title = "Save archive to folder"
 							if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
-								err := doPack(PackOptions{
+								log, err := doPack(PackOptions{
 									Inputs:   files,
 									Output:   fdlg.FilePath,
 									Level:    int(levelEdit.Value()),
@@ -448,6 +450,9 @@ func showPackDialog(owner walk.Form, files []string) {
 									walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
 								} else {
 									walk.MsgBox(owner, "Done", "Archive created successfully", walk.MsgBoxIconInformation)
+								}
+								if log.HasIssues() {
+									log.Show(owner, "Pack")
 								}
 							}
 							dlg.Accept()
@@ -470,11 +475,14 @@ func showExtractDialog(owner walk.Form, archivePath string) {
 	fdlg.Title = "Extract to folder"
 	fdlg.FilePath = filepath.Dir(archivePath)
 	if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
-		err := doExtract(archivePath, fdlg.FilePath)
+		log, err := doExtract(archivePath, fdlg.FilePath)
 		if err != nil {
 			walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
 		} else {
 			walk.MsgBox(owner, "Done", "Extracted successfully to:\n"+fdlg.FilePath, walk.MsgBoxIconInformation)
+		}
+		if log.HasIssues() {
+			log.Show(owner, "Extract")
 		}
 	}
 }
