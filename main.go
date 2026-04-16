@@ -101,17 +101,18 @@ func main() {
 	doAdd := func() {
 		paths := getSelectedPaths()
 		if len(paths) == 0 {
-			// No selection: open file dialog
-			dlg := new(walk.FileDialog)
-			dlg.Title = "Select files to compress"
-			dlg.FilePath = currentDir
-			if ok, _ := dlg.ShowOpenMultiple(mw); ok && len(dlg.FilePaths) > 0 {
-				paths = dlg.FilePaths
-			}
+			walk.MsgBox(mw, "Add", "Select files or folders in the file browser first", walk.MsgBoxIconInformation)
+			return
 		}
-		if len(paths) > 0 {
-			showPackDialog(mw, paths)
-		}
+		showPackDialog(mw, paths)
+	}
+
+	isArchive := func(path string) bool {
+		low := strings.ToLower(path)
+		return strings.HasSuffix(low, ".nya") || strings.HasSuffix(low, ".zip") ||
+			strings.HasSuffix(low, ".rar") || strings.HasSuffix(low, ".7z") ||
+			strings.HasSuffix(low, ".tar") || strings.HasSuffix(low, ".gz") ||
+			strings.HasSuffix(low, ".bz2") || strings.HasSuffix(low, ".xz")
 	}
 
 	doExtract := func() {
@@ -119,18 +120,12 @@ func main() {
 			showExtractDialog(mw, model.archivePath)
 			return
 		}
-		// Check if a .nya is selected
 		paths := getSelectedPaths()
-		if len(paths) == 1 && strings.HasSuffix(strings.ToLower(paths[0]), ".nya") {
+		if len(paths) == 1 && isArchive(paths[0]) {
 			showExtractDialog(mw, paths[0])
 			return
 		}
-		dlg := new(walk.FileDialog)
-		dlg.Title = "Select archive"
-		dlg.Filter = "Nyarc Archives (*.nya)|*.nya|All Files (*.*)|*.*"
-		if ok, _ := dlg.ShowOpen(mw); ok {
-			showExtractDialog(mw, dlg.FilePath)
-		}
+		walk.MsgBox(mw, "Extract", "Select an archive file (.nya/.zip/.rar/.7z) in the file browser", walk.MsgBoxIconInformation)
 	}
 
 	getNyaPath := func() string {
@@ -141,12 +136,7 @@ func main() {
 		if len(paths) == 1 && strings.HasSuffix(strings.ToLower(paths[0]), ".nya") {
 			return paths[0]
 		}
-		dlg := new(walk.FileDialog)
-		dlg.Title = "Select .nya archive"
-		dlg.Filter = "Nyarc Archives (*.nya)|*.nya"
-		if ok, _ := dlg.ShowOpen(mw); ok {
-			return dlg.FilePath
-		}
+		walk.MsgBox(mw, "Info", "Select a .nya archive in the file browser", walk.MsgBoxIconInformation)
 		return ""
 	}
 
@@ -198,20 +188,22 @@ func main() {
 		if len(paths) == 0 {
 			return
 		}
-		msg := fmt.Sprintf("Delete %d item(s)?\n", len(paths))
+		msg := fmt.Sprintf("Delete %d item(s)?\n\n", len(paths))
 		for i, p := range paths {
 			if i < 5 {
 				msg += filepath.Base(p) + "\n"
 			}
 		}
 		if len(paths) > 5 {
-			msg += fmt.Sprintf("... and %d more", len(paths)-5)
+			msg += fmt.Sprintf("... and %d more\n", len(paths)-5)
 		}
-		if walk.MsgBox(mw, "Confirm Delete", msg, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) == walk.DlgCmdYes {
+		msg += "\nThis will permanently delete the files."
+		if walk.MsgBox(mw, "Confirm Delete", msg, walk.MsgBoxYesNo|walk.MsgBoxIconWarning) == walk.DlgCmdYes {
 			for _, p := range paths {
 				os.RemoveAll(p)
 			}
 			model.SetDir(currentDir)
+			if table != nil { table.Invalidate() }
 		}
 	}
 
