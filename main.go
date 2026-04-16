@@ -337,8 +337,7 @@ func main() {
 	addTBAction("Test", iconTest, func() { doTestFn() })
 	addTBAction("Repair", iconRepair, func() { doRepairFn() })
 	addTBAction("Info", iconInfo, func() { doInfoFn() })
-	sep := walk.NewAction()
-	sep.SetSeparator(true)
+	sep := walk.NewSeparatorAction()
 	tb.Actions().Add(sep)
 	addTBAction("Delete", iconDelete, func() { doDeleteFn() })
 
