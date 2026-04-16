@@ -16,6 +16,7 @@ const fec = ref(10)
 const password = ref('')
 const solid = ref(false)
 const sfx = ref(false)
+const extractDir = ref('')
 
 // Handle startup file (double-click or right-click menu)
 onMounted(async () => {
@@ -74,11 +75,16 @@ async function doPack() {
   loading.value = false
 }
 
+async function browseExtractDir() {
+  const path = await OpenDirectoryDialog()
+  if (path) { extractDir.value = path }
+}
+
 async function doExtract() {
   loading.value = true
   result.value = null
   try {
-    const r = await Extract(selectedPath.value)
+    const r = await Extract(selectedPath.value, extractDir.value)
     result.value = r
   } catch(e) {
     result.value = { success: false, message: String(e), duration: 0 }
@@ -253,6 +259,18 @@ function clear() {
               </div>
             </div>
             <button @click="clear" class="text-gray-500 hover:text-red-400 px-3 py-1 text-sm">✕ Clear</button>
+          </div>
+        </div>
+
+        <div v-if="fileInfo" class="bg-gray-900 rounded-xl p-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="text-xs text-gray-500 block mb-1.5">Extract to</label>
+              <p class="text-sm text-gray-300">{{ extractDir || 'Same directory as archive' }}</p>
+            </div>
+            <button @click="browseExtractDir" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+              📁 Choose Folder
+            </button>
           </div>
         </div>
 
