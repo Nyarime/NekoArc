@@ -19,6 +19,7 @@ func main() {
 	var table *walk.TableView
 	var statusBar *walk.StatusBarItem
 	var model *FileModel
+	var tb *walk.ToolBar
 
 	currentDir := ""
 	home, _ := os.UserHomeDir()
@@ -27,6 +28,7 @@ func main() {
 	}
 
 	model = NewFileModel(currentDir)
+	initIcons()
 
 	navigate := func(dir string) {
 		currentDir = dir
@@ -249,18 +251,11 @@ func main() {
 			},
 		},
 		Children: []Widget{
-			// ─── Toolbar (WinRAR style) ───
-			Composite{
-				Layout: HBox{Margins: Margins{Left: 2, Top: 2, Right: 2, Bottom: 2}},
-				Children: []Widget{
-					PushButton{Text: "Add", OnClicked: func() { doAdd() }},
-					PushButton{Text: "Extract", OnClicked: func() { doExtract() }},
-					PushButton{Text: "Test", OnClicked: func() { doTestFn() }},
-					PushButton{Text: "Repair", OnClicked: func() { doRepairFn() }},
-					PushButton{Text: "Info", OnClicked: func() { doInfoFn() }},
-					VSeparator{},
-					PushButton{Text: "Delete", OnClicked: func() { doDeleteFn() }},
-				},
+			// ─── Toolbar ───
+			ToolBar{
+				AssignTo:    &tb,
+				ButtonStyle: ToolBarButtonImageAboveText,
+				MaxTextRows: 1,
 			},
 			// ─── Address bar ───
 			Composite{
@@ -326,6 +321,26 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+
+	// Populate toolbar with icons
+	addTBAction := func(text string, icon *walk.Icon, handler func()) {
+		action := walk.NewAction()
+		action.SetText(text)
+		if icon != nil {
+			action.SetImage(icon)
+		}
+		action.Triggered().Attach(handler)
+		tb.Actions().Add(action)
+	}
+	addTBAction("Add", iconAdd, func() { doAdd() })
+	addTBAction("Extract", iconExtract, func() { doExtract() })
+	addTBAction("Test", iconTest, func() { doTestFn() })
+	addTBAction("Repair", iconRepair, func() { doRepairFn() })
+	addTBAction("Info", iconInfo, func() { doInfoFn() })
+	sep := walk.NewAction()
+	sep.SetSeparator(true)
+	tb.Actions().Add(sep)
+	addTBAction("Delete", iconDelete, func() { doDeleteFn() })
 
 	updateStatus := func() {
 		count := len(model.items)
