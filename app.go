@@ -115,7 +115,7 @@ func doPack(opts PackOptions) (*DiagLog, error) {
 			log.Error("Cannot create output file: "+err.Error(), output)
 			return log, err
 		}
-		defer 
+		defer f.Close()
 		ws = f
 	}
 
