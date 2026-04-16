@@ -582,6 +582,28 @@ func main() {
 	model.onUpdate = updateStatus
 	updateStatus()
 
+	// Add recent files to File menu
+	if len(cfg.RecentFiles) > 0 {
+		fileMenu := mw.Menu().Actions().At(0).Menu()
+		if fileMenu != nil {
+			sep := walk.NewSeparatorAction()
+			fileMenu.Actions().Add(sep)
+			for _, rf := range cfg.RecentFiles {
+				path := rf
+				action := walk.NewAction()
+				action.SetText(filepath.Base(path))
+				action.Triggered().Attach(func() {
+					if strings.HasSuffix(strings.ToLower(path), ".nya") {
+						navigateArchive(path)
+					} else {
+						navigateGenericArchive(path)
+					}
+				})
+				fileMenu.Actions().Add(action)
+			}
+		}
+	}
+
 	mw.Run()
 	cleanupTemp()
 }
