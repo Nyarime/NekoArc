@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -286,12 +287,20 @@ func listGenericArchive(path string) ([]FileEntry, error) {
 		return entries, nil
 	}
 
-	// Other formats (7z, rar, tar.*): extract to temp and list
+	// Other formats: extract to temp and list
 	tmpDir, err := os.MkdirTemp("", "nekoarc-browse-*")
 	if err != nil { return nil, err }
-	// Extract using nyarc's universal extractor
+	
+	// Try archiver first
 	err = nya.ExtractAny(path, tmpDir)
-	if err != nil { return nil, fmt.Errorf("cannot open: %w", err) }
+	if err != nil {
+		// Try 7z.exe as fallback
+		cmd := exec.Command("7z", "x", "-o" + tmpDir, "-y", path)
+		if err2 := cmd.Run(); err2 != nil {
+			os.RemoveAll(tmpDir)
+			return nil, fmt.Errorf("cannot extract: %v (install 7-Zip for .7z support)", err)
+		}
+	}
 	// Walk extracted files
 	filepath.Walk(tmpDir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || p == tmpDir { return err }
