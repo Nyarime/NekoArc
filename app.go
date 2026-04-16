@@ -19,15 +19,14 @@ type App struct {
 }
 
 func NewApp() *App { return &App{} }
-
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
-
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, Welcome to NekoArc!", name)
 }
 
 type PackOptions struct {
 	Input    string `json:"input"`
+	Output   string `json:"output"`
 	Format   string `json:"format"`
 	Level    int    `json:"level"`
 	FEC      int    `json:"fec"`
@@ -50,54 +49,55 @@ func (a *App) Pack(opts PackOptions) Result {
 
 	base := filepath.Base(opts.Input)
 	output := strings.TrimSuffix(base, filepath.Ext(base)) + ".nya"
-	if opts.Output != "" { output = filepath.Join(opts.Output, filepath.Base(output)) }
-
-	if opts.Format != "" && opts.Format != "nya" {
-		output = strings.TrimSuffix(base, filepath.Ext(base)) + "." + opts.Format
+	if opts.Output != "" {
+		output = filepath.Join(opts.Output, filepath.Base(output))
 	}
 
-	// 直接调用nya包
-	if opts.Format == "" || opts.Format == "nya" {
-		level := opts.Level
-		if level == 0 { level = 9 }
-		fec := opts.FEC
-		if fec == 0 { fec = 10 }
+	level := opts.Level
+	if level == 0 { level = 9 }
+	fec := opts.FEC
+	if fec == 0 { fec = 10 }
 
-		w, err := nya.NewWriter(output, level, fec, opts.Solid)
-		if err != nil {
-			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
-		}
+	f, err := os.Create(output)
+	if err != nil {
+		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+	}
+
+	var w *nya.Writer
+	if opts.Solid {
 		if opts.Password != "" {
-			w.SetPassword([]byte(opts.Password))
-		}
-
-		err = w.AddPath(opts.Input)
-		if err != nil {
-			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
-		}
-		err = w.Close()
-		if err != nil {
-			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
-		}
-
-		info, _ := os.Stat(output)
-		size := int64(0)
-		if info != nil { size = info.Size() }
-
-		if opts.SFX {
-			nya.CreateSFX(output, "")
-		}
-
-		return Result{
-			Success: true,
-			Message: fmt.Sprintf("✅ %s → %s (%s)", opts.Input, output, nya.HumanSize(int(size))),
-			Duration: time.Since(start).Seconds(),
-		}
+		w = nya.NewWriterOpts(f, fec, level, true, []byte(opts.Password))
+	} else {
+		w = nya.NewWriterOpts(f, fec, level, true)
+	}
+	} else {
+		if opts.Password != "" {
+		w = nya.NewWriterOpts(f, fec, level, false, []byte(opts.Password))
+	} else {
+		w = nya.NewWriter(f, fec, level)
 	}
 
-	// 非nya格式: 用archiver
-	// 简单起见先调CLI
-	return Result{Success: false, Message: "Non-nya format: use CLI for now", Duration: time.Since(start).Seconds()}
+	err = w.AddFile(opts.Input)
+	if err != nil {
+		f.Close()
+		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+	}
+	w.Close()
+	f.Close()
+
+	info, _ := os.Stat(output)
+	size := int64(0)
+	if info != nil { size = info.Size() }
+
+	if opts.SFX {
+		nya.CreateSFX(output, "")
+	}
+
+	return Result{
+		Success:  true,
+		Message:  fmt.Sprintf("✅ %s → %s (%s)", opts.Input, output, nya.HumanSize(int(size))),
+		Duration: time.Since(start).Seconds(),
+	}
 }
 
 func (a *App) Extract(filePath string, destDir string) Result {
@@ -106,31 +106,21 @@ func (a *App) Extract(filePath string, destDir string) Result {
 		return Result{Success: false, Message: "No file selected"}
 	}
 
-	ext := strings.ToLower(filepath.Ext(filePath))
-	if destDir != "" {
-		os.Chdir(destDir)
+	r, err := nya.Open(filePath)
+	if err != nil {
+		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
-
-	if ext == ".nya" {
-		r, err := nya.Open(filePath)
-		if err != nil {
-			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
-		}
-		dir := "."
-		if destDir != "" { dir = destDir }
-		err = r.Extract(dir)
-		if err != nil {
-			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
-		}
-		return Result{
-			Success: true,
-			Message: fmt.Sprintf("✅ Extracted to %s", dir),
-			Duration: time.Since(start).Seconds(),
-		}
+	dir := "."
+	if destDir != "" { dir = destDir }
+	err = r.Extract(dir)
+	if err != nil {
+		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
-
-	// 通解: 用archiver
-	return Result{Success: false, Message: "Non-nya extract: coming soon", Duration: time.Since(start).Seconds()}
+	return Result{
+		Success: true,
+		Message: fmt.Sprintf("✅ Extracted to %s", dir),
+		Duration: time.Since(start).Seconds(),
+	}
 }
 
 func (a *App) Repair(filePath string) Result {
@@ -138,15 +128,13 @@ func (a *App) Repair(filePath string) Result {
 	if filePath == "" {
 		return Result{Success: false, Message: "No file selected"}
 	}
-
 	result, err := nya.Repair(filePath, "")
 	if err != nil {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
-
 	return Result{
 		Success: true,
-		Message: fmt.Sprintf("✅ Repaired! %d chunks, %d damaged, %d recovered",
+		Message: fmt.Sprintf("✅ %d chunks, %d damaged, %d recovered",
 			result.TotalChunks, result.CorruptedChunks, result.RepairedChunks),
 		Duration: time.Since(start).Seconds(),
 	}
@@ -159,51 +147,39 @@ func (a *App) Test(filePath string) Result {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
 	ok := r.Verify()
-	msg := "✅ Archive OK"
-	if !ok { msg = "❌ Archive corrupted" }
-	return Result{Success: ok, Message: msg, Duration: time.Since(start).Seconds()}
+	if ok {
+		return Result{Success: true, Message: "✅ Archive OK", Duration: time.Since(start).Seconds()}
+	}
+	return Result{Success: false, Message: "❌ Archive corrupted", Duration: time.Since(start).Seconds()}
 }
 
 func (a *App) OpenFileDialog() string {
-	path, err := rt.OpenFileDialog(a.ctx, rt.OpenDialogOptions{
-		Title: "Select file",
-		Filters: []rt.FileFilter{
-			{DisplayName: "All Files", Pattern: "*"},
-			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
-		},
+	p, _ := rt.OpenFileDialog(a.ctx, rt.OpenDialogOptions{
+		Title:   "Select file",
+		Filters: []rt.FileFilter{{DisplayName: "All Files", Pattern: "*"}},
 	})
-	if err != nil { return "" }
-	return path
+	return p
 }
 
 func (a *App) OpenMultipleFilesDialog() []string {
-	paths, err := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{
-		Title: "Select files",
-		Filters: []rt.FileFilter{
-			{DisplayName: "All Files", Pattern: "*"},
-		},
+	p, _ := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{
+		Title:   "Select files",
+		Filters: []rt.FileFilter{{DisplayName: "All Files", Pattern: "*"}},
 	})
-	if err != nil { return nil }
-	return paths
+	return p
 }
 
 func (a *App) OpenDirectoryDialog() string {
-	path, err := rt.OpenDirectoryDialog(a.ctx, rt.OpenDialogOptions{
-		Title: "Select folder",
-	})
-	if err != nil { return "" }
-	return path
+	p, _ := rt.OpenDirectoryDialog(a.ctx, rt.OpenDialogOptions{Title: "Select folder"})
+	return p
 }
 
 func (a *App) GetFileInfo(path string) map[string]interface{} {
 	info, err := os.Stat(path)
 	if err != nil { return nil }
 	return map[string]interface{}{
-		"name":  info.Name(),
-		"size":  info.Size(),
-		"isDir": info.IsDir(),
-		"ext":   filepath.Ext(path),
-		"path":  path,
+		"name": info.Name(), "size": info.Size(), "isDir": info.IsDir(),
+		"ext": filepath.Ext(path), "path": path,
 	}
 }
 
