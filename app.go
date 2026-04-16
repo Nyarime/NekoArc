@@ -56,7 +56,7 @@ func (a *App) Pack(opts PackOptions) Result {
 	level := opts.Level
 	if level == 0 { level = 9 }
 	fec := opts.FEC
-	if fec == 0 { fec = 10 }
+	if fec == 0 { fec = 100 }
 
 	f, err := os.Create(output)
 	if err != nil {
