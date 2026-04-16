@@ -168,7 +168,7 @@ function clear() {
                 <option value="nya">.nya (FEC Protected)</option>
                 <option value="zip">.zip</option>
                 <option value="tar.gz">.tar.gz</option>
-                <option value="rar">.rar (Store)</option>
+                <option value="rar">.rar (Store) ⚠️ Experimental</option>
               </select>
             </div>
             <div>
