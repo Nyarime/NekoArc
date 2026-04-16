@@ -264,14 +264,13 @@ func copyFile(src, dst string) error {
 // listGenericArchive lists contents of zip/rar/7z/tar etc
 func listGenericArchive(path string) ([]FileEntry, error) {
 	var entries []FileEntry
+	low := strings.ToLower(path)
 
-	// Use archiver to walk archive
-	f, err := os.Open(path)
-	if err != nil { return nil, err }
-	defer f.Close()
-
-	// Try zip first (most common)
-	if strings.HasSuffix(strings.ToLower(path), ".zip") {
+	// ZIP: use Go's built-in archive/zip (most reliable)
+	if strings.HasSuffix(low, ".zip") {
+		f, err := os.Open(path)
+		if err != nil { return nil, err }
+		defer f.Close()
 		fi, _ := f.Stat()
 		zr, err := zip.NewReader(f, fi.Size())
 		if err != nil { return nil, err }
@@ -287,7 +286,26 @@ func listGenericArchive(path string) ([]FileEntry, error) {
 		return entries, nil
 	}
 
-	return nil, fmt.Errorf("unsupported format for browsing")
+	// Other formats (7z, rar, tar.*): extract to temp and list
+	tmpDir, err := os.MkdirTemp("", "nekoarc-browse-*")
+	if err != nil { return nil, err }
+	// Extract using nyarc's universal extractor
+	err = nya.ExtractAny(path, tmpDir)
+	if err != nil { return nil, fmt.Errorf("cannot open: %w", err) }
+	// Walk extracted files
+	filepath.Walk(tmpDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || p == tmpDir { return err }
+		rel, _ := filepath.Rel(tmpDir, p)
+		entries = append(entries, FileEntry{
+			Name:    rel,
+			Path:    p, // use actual extracted path
+			Size:    info.Size(),
+			IsDir:   info.IsDir(),
+			ModTime: info.ModTime().Format("2006-01-02 15:04"),
+		})
+		return nil
+	})
+	return entries, nil
 }
 
 func isArchiveFile(path string) bool {
