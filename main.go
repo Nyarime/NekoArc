@@ -139,6 +139,7 @@ func main() {
 			// Inside archive: extract file to temp and open
 			if isArchiveFile(item.Name) {
 				// Nested archive: extract to temp then browse
+				logicalPath := model.archivePath + string(filepath.Separator) + item.Name
 				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
 				r, err := nya.Open(model.archivePath)
 				if err == nil {
@@ -146,10 +147,10 @@ func main() {
 					extracted := filepath.Join(tmpDir, item.Name)
 					if _, err := os.Stat(extracted); err == nil {
 						navigateGenericArchive(extracted)
-						// Fix address bar to show logical path
-						logicalPath := model.archivePath + string(filepath.Separator) + item.Name
+						// Override with logical path
 						currentDir = logicalPath
 						if addressBar != nil { addressBar.SetText(logicalPath) }
+						if mw != nil { mw.SetTitle(item.Name + " - NekoArc") }
 					}
 				}
 			} else {
