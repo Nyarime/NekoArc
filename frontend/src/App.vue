@@ -30,6 +30,14 @@ onMounted(async () => {
   }
 })
 
+async function browseMultipleFiles() {
+  const { OpenMultipleFilesDialog } = await import('../wailsjs/go/main/App')
+  const paths = await OpenMultipleFilesDialog()
+  if (paths && paths.length > 0) {
+    await selectPath(paths[0])
+  }
+}
+
 async function browseFile() {
   const path = await OpenFileDialog()
   if (path) { await selectPath(path) }
@@ -152,7 +160,7 @@ function clear() {
           <div class="text-5xl mb-4">📁</div>
           <p class="text-lg font-medium text-gray-300 mb-4">Select files or folder to compress</p>
           <div class="flex gap-3 justify-center">
-            <button @click="browseFile" class="bg-purple-600 hover:bg-purple-500 px-6 py-2.5 rounded-xl text-sm font-medium transition">
+            <button @click="browseMultipleFiles" class="bg-purple-600 hover:bg-purple-500 px-6 py-2.5 rounded-xl text-sm font-medium transition">
               📄 Select Files
             </button>
             <button @click="browseFolder" class="bg-gray-700 hover:bg-gray-600 px-6 py-2.5 rounded-xl text-sm font-medium transition">
