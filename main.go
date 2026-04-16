@@ -424,7 +424,7 @@ func main() {
 				Text: "&Help",
 				Items: []MenuItem{
 					Action{Text: "&About NekoArc", OnTriggered: func() {
-						walk.MsgBox(mw, "About NekoArc", "NekoArc v0.3.0\n\nNyarc archive manager with FEC self-repair\nhttps://github.com/Nyarime/NekoArc", walk.MsgBoxIconInformation)
+						walk.MsgBox(mw, "About NekoArc", "NekoArc v0.7.0\n\nPowered by Nyarc v0.7.0\nZstd compression + RaptorQ FEC self-repair\nBLAKE3 integrity verification\n\nhttps://github.com/Nyarime/NekoArc\nhttps://github.com/Nyarime/Nyarc", walk.MsgBoxIconInformation)
 					}},
 				},
 			},
