@@ -915,7 +915,11 @@ func (m *FileModel) Image(row int) interface{} {
 	if m.inArchive {
 		ext := filepath.Ext(item.Name)
 		if ext != "" {
-			return "file" + ext
+			tmp := filepath.Join(os.TempDir(), "nekoarc_icon"+ext)
+			if _, e := os.Stat(tmp); os.IsNotExist(e) {
+				os.WriteFile(tmp, []byte{}, 0644)
+			}
+			return tmp
 		}
 		return nil
 	}
