@@ -912,12 +912,7 @@ func (m *FileModel) Image(row int) interface{} {
 	if m.inArchive {
 		ext := filepath.Ext(item.Name)
 		if ext != "" {
-			// Create temp file if not exists (walk needs real file for icon)
-			tmp := filepath.Join(os.TempDir(), "nekoarc_icon"+ext)
-			if _, err := os.Stat(tmp); os.IsNotExist(err) {
-				os.WriteFile(tmp, []byte{}, 0644)
-			}
-			return tmp
+			return "file" + ext
 		}
 		return nil
 	}
