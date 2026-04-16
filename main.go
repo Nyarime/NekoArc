@@ -231,9 +231,10 @@ func main() {
 		} else {
 			// For binary files, offer to scan
 			ext := strings.ToLower(filepath.Ext(item.Name))
-			binExts := map[string]bool{".bin":{}, ".img":{}, ".fw":{}, ".rom":{}, ".exe":{}, ".dll":{}, ".sys":{}, ".so":{}}
+			binExts := map[string]bool{".bin": true, ".img": true, ".fw": true, ".rom": true, ".exe": true, ".dll": true, ".sys": true, ".so": true}
 			if binExts[ext] {
-				if walk.MsgBox(mw, "Binary File", "Scan for embedded data signatures?
+				if walk.MsgBox(mw, "Binary File", "Scan for embedded data signatures?\n\n" + item.Name, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) == walk.DlgCmdYes {
+
 
 " + item.Name, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) == walk.DlgCmdYes {
 					showScanResults(mw, item.Path)
