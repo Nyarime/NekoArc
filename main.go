@@ -46,9 +46,11 @@ func main() {
 	}
 
 	model = NewFileModel(currentDir)
+	navStack := NewNavStack(currentDir)
 	initIcons()
 
 	navigate := func(dir string) {
+		navStack.EnterDir(dir)
 		// Fix drive paths: D: → D:\
 		if len(dir) == 2 && dir[1] == ':' {
 			dir += string(filepath.Separator)
@@ -74,6 +76,7 @@ func main() {
 	}
 
 	navigateArchive := func(path string) {
+		navStack.EnterArchive(path)
 		currentDir = path
 		if addressBar != nil {
 			addressBar.SetText(currentDir)
@@ -88,6 +91,7 @@ func main() {
 	}
 
 	navigateGenericArchive := func(path string) {
+		navStack.EnterArchive(path)
 		currentDir = path
 		if addressBar != nil {
 			addressBar.SetText(currentDir)
@@ -103,46 +107,28 @@ func main() {
 	}
 
 	goUp := func() {
-		if model.inArchive && model.archiveSubDir != "" {
-			// Go up within archive subdirectory
-			parent := ""
-			if idx := strings.LastIndex(model.archiveSubDir, "/"); idx >= 0 {
-				parent = model.archiveSubDir[:idx]
-			}
-			model.NavigateArchiveDir(parent)
-			if table != nil { table.Invalidate() }
-		} else if model.inArchive {
-			parent := filepath.Dir(currentDir)
-			// Check if parent is an archive file → re-open it
-			if isArchiveFile(parent) {
-				if _, err := os.Stat(parent); err == nil {
-					if strings.HasSuffix(strings.ToLower(parent), ".nya") {
-						navigateArchive(parent)
-					} else {
-						navigateGenericArchive(parent)
+		state := navStack.GoUp()
+		if state.Mode == NavArchive {
+			if state.SubDir != "" || state.SubDir == "" {
+				// Re-apply archive state
+				if strings.HasSuffix(strings.ToLower(state.ArchivePath), ".nya") {
+					model.SetArchive(state.ArchivePath)
+				} else {
+					entries, _ := listGenericArchive(state.ArchivePath)
+					model.SetGenericArchive(state.ArchivePath, entries)
+					if state.SubDir != "" {
+						model.NavigateArchiveDir(state.SubDir)
 					}
-					currentDir = parent
-					if addressBar != nil { addressBar.SetText(parent) }
-					return
 				}
 			}
-			// Otherwise navigate to parent directory
-			navigate(filepath.Dir(parent))
-		} else if currentDir != "" {
-			parent := filepath.Dir(currentDir)
-			if parent == currentDir {
-				// At drive root (C:\) → go to "My Computer" (drive list)
-				currentDir = ""
-				if addressBar != nil {
-					addressBar.SetText("")
-				}
-				model.SetDir("")
-				if table != nil { table.Invalidate() }
-				if mw != nil { mw.SetTitle("NekoArc") }
-			} else {
-				navigate(parent)
-			}
+			currentDir = navStack.GetDisplayPath()
+			if addressBar != nil { addressBar.SetText(currentDir) }
+			if mw != nil { mw.SetTitle(state.Title) }
+			if table != nil { table.Invalidate() }
+			return
 		}
+		// Filesystem
+		navigate(state.DirPath)
 	}
 
 	activateItem := func() {
