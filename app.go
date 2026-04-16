@@ -188,7 +188,6 @@ func doTest(path string) (*DiagLog, int, bool, error) {
 	}
 	ok := r.Verify()
 	if ok {
-		log.Info("All integrity checks passed", path)
 	} else {
 		log.Error("Archive integrity check FAILED", path)
 	}

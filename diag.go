@@ -107,11 +107,11 @@ func (d *DiagLog) Show(owner walk.Form, title string) {
 						OnClicked: func() {
 							var sb strings.Builder
 							for _, e := range d.entries {
-								prefix := "ℹ️"
+								prefix := "!"
 								if e.Level == LogWarning {
-									prefix = "⚠️"
+									prefix = "WARNING:"
 								} else if e.Level == LogError {
-									prefix = "❌"
+									prefix = "ERROR:"
 								}
 								sb.WriteString(fmt.Sprintf("%s %s\t%s\n", prefix, e.Message, e.File))
 							}
@@ -146,9 +146,9 @@ func (m *LogModel) Value(row, col int) interface{} {
 		prefix := ""
 		switch e.Level {
 		case LogWarning:
-			prefix = "⚠ "
+			prefix = "WARNING: "
 		case LogError:
-			prefix = "✖ "
+			prefix = "ERROR: "
 		}
 		return prefix + e.Message
 	case 1:
