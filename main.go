@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/lxn/walk"
 	"github.com/nyarime/nyarc/pkg/nya"
@@ -192,6 +193,7 @@ func main() {
 
 	doDeleteFn := func() {
 		if model.inArchive {
+			walk.MsgBox(mw, "Delete", "Editing files inside archives is not supported yet.\nExtract the archive first, modify, then recompress.", walk.MsgBoxIconInformation)
 			return
 		}
 		paths := getSelectedPaths()
@@ -828,9 +830,15 @@ func (m *FileModel) SetArchive(path string) {
 	for _, f := range files {
 		totalOrig += f.OriginalSize
 		m.items = append(m.items, FileEntry{
-			Name: f.Path,
-			Path: f.Path,
-			Size: int64(f.OriginalSize),
+			Name:    f.Path,
+			Path:    f.Path,
+			Size:    int64(f.OriginalSize),
+			ModTime: func() string {
+				if f.MTimeNano > 0 {
+					return time.Unix(0, f.MTimeNano).Format("2006-01-02 15:04")
+				}
+				return ""
+			}(),
 		})
 	}
 	m.inArchive = true
