@@ -266,6 +266,11 @@ func main() {
 			Composite{
 				Layout: HBox{Margins: Margins{Left: 2, Top: 0, Right: 2, Bottom: 2}},
 				Children: []Widget{
+					PushButton{
+						Text:    "^",
+						MaxSize: Size{Width: 28},
+						OnClicked: func() { goUp() },
+					},
 					LineEdit{
 						AssignTo: &addressBar,
 						Text:     currentDir,
@@ -293,10 +298,11 @@ func main() {
 				ColumnsOrderable:      true,
 				MultiSelection:        true,
 				LastColumnStretched:    true,
-				Columns: []TableViewColumn{
-					{Title: "Name", Width: 300},
-					{Title: "Size", Width: 100, Alignment: AlignFar},
-					{Title: "Modified", Width: 150},
+			Columns: []TableViewColumn{
+					{Title: "Name", Width: 280},
+					{Title: "Size", Width: 90, Alignment: AlignFar},
+					{Title: "Type", Width: 120},
+					{Title: "Modified", Width: 140},
 				},
 				Model:           model,
 				OnItemActivated: func() { activateItem() },
@@ -578,18 +584,30 @@ func (m *FileModel) Value(row, col int) interface{} {
 	switch col {
 	case 0:
 		if item.Name == ".." {
-			return "[..]"
-		}
-		if item.IsDir {
-			return "[" + item.Name + "]"
+			return ".."
 		}
 		return item.Name
 	case 1:
-		if item.IsDir || item.Name == ".." {
+		if item.IsDir {
 			return ""
 		}
 		return humanSize(item.Size)
 	case 2:
+		if item.IsDir {
+			return "File folder"
+		}
+		ext := ""
+		for i := len(item.Name) - 1; i >= 0; i-- {
+			if item.Name[i] == '.' {
+				ext = strings.ToUpper(item.Name[i+1:]) + " File"
+				break
+			}
+		}
+		if ext == "" {
+			ext = "File"
+		}
+		return ext
+	case 3:
 		return item.ModTime
 	}
 	return ""
@@ -626,6 +644,9 @@ func (m *FileModel) doSort() {
 		case 1:
 			less = a.Size < b.Size
 		case 2:
+			// Type sort by extension
+			less = strings.ToLower(filepath.Ext(a.Name)) < strings.ToLower(filepath.Ext(b.Name))
+		case 3:
 			less = a.ModTime < b.ModTime
 		default:
 			less = strings.ToLower(a.Name) < strings.ToLower(b.Name)
