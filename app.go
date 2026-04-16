@@ -295,7 +295,19 @@ func listGenericArchive(path string) ([]FileEntry, error) {
 	err = nya.ExtractAny(path, tmpDir)
 	if err != nil {
 		// Try 7z.exe as fallback
-		cmd := exec.Command("7z", "x", "-o" + tmpDir, "-y", path)
+		// Try standard 7-Zip install paths
+		sevenZip := "7z"
+		paths7z := []string{
+			"C:\Program Files\7-Zip\7z.exe",
+			"C:\Program Files (x86)\7-Zip\7z.exe",
+		}
+		for _, p := range paths7z {
+			if _, err := os.Stat(p); err == nil {
+				sevenZip = p
+				break
+			}
+		}
+		cmd := exec.Command(sevenZip, "x", "-o" + tmpDir, "-y", path)
 		if err2 := cmd.Run(); err2 != nil {
 			os.RemoveAll(tmpDir)
 			return nil, fmt.Errorf("cannot extract: %v (install 7-Zip for .7z support)", err)
