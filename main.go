@@ -414,6 +414,7 @@ func main() {
 					Action{Text: "&Extract to...", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyE}, OnTriggered: func() { doExtract() }},
 					Action{Text: "&Test archive", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyT}, OnTriggered: func() { doTestFn() }},
 					Action{Text: "&Repair archive", OnTriggered: func() { doRepairFn() }},
+					Action{Text: "Add &recovery record...", OnTriggered: func() { showRecoveryDialog(mw, getSelectedPaths, model) }},
 					Action{Text: "Archive &info", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyI}, OnTriggered: func() { doInfoFn() }},
 					Separator{},
 					Action{Text: "&Delete files", Shortcut: Shortcut{Key: walk.KeyDelete}, OnTriggered: func() { doDeleteFn() }},
