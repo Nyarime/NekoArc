@@ -34,6 +34,9 @@ func main() {
 			addressBar.SetText(currentDir)
 		}
 		model.SetDir(currentDir)
+		if table != nil {
+			table.Invalidate()
+		}
 	}
 
 	navigateArchive := func(path string) {
@@ -42,6 +45,9 @@ func main() {
 			addressBar.SetText(currentDir)
 		}
 		model.SetArchive(path)
+		if table != nil {
+			table.Invalidate()
+		}
 	}
 
 	goUp := func() {
