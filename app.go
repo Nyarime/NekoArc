@@ -298,8 +298,8 @@ func listGenericArchive(path string) ([]FileEntry, error) {
 		// Try standard 7-Zip install paths
 		sevenZip := "7z"
 		paths7z := []string{
-			"C:\Program Files\7-Zip\7z.exe",
-			"C:\Program Files (x86)\7-Zip\7z.exe",
+			"C:\\Program Files\\7-Zip\\7z.exe",
+			"C:\\Program Files (x86)\\7-Zip\\7z.exe",
 		}
 		for _, p := range paths7z {
 			if _, err := os.Stat(p); err == nil {
