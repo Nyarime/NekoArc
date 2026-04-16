@@ -947,7 +947,10 @@ func (m *FileModel) Image(row int) interface{} {
 		if item.Path != "" && filepath.IsAbs(item.Path) {
 			return item.Path
 		}
-		return nil // no icon for virtual dirs
+		// For archive folders, create a temp dir for icon
+		tmpFolder := filepath.Join(os.TempDir(), "nekoarc_folder")
+		os.MkdirAll(tmpFolder, 0755)
+		return tmpFolder
 	}
 	if m.inArchive {
 		ext := filepath.Ext(item.Name)

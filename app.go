@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"golang.org/x/text/encoding/simplifiedchinese"
 	"github.com/bodgit/sevenzip"
 	"fmt"
 	"io"
@@ -277,9 +278,16 @@ func listGenericArchive(path string) ([]FileEntry, error) {
 		zr, err := zip.NewReader(f, fi.Size())
 		if err != nil { return nil, err }
 		for _, zf := range zr.File {
+			name := zf.Name
+			// Detect non-UTF8 filenames (GBK)
+			if zf.NonUTF8 {
+				if decoded, err := simplifiedchinese.GBK.NewDecoder().String(name); err == nil {
+					name = decoded
+				}
+			}
 			entries = append(entries, FileEntry{
-				Name:    zf.Name,
-				Path:    zf.Name,
+				Name:    name,
+				Path:    name,
 				Size:    int64(zf.UncompressedSize64),
 				IsDir:   zf.FileInfo().IsDir(),
 				ModTime: zf.Modified.Format("2006-01-02 15:04"),
