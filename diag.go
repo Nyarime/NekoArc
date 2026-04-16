@@ -115,8 +115,11 @@ func (d *DiagLog) Show(owner walk.Form, title string) {
 								}
 								sb.WriteString(fmt.Sprintf("%s %s\t%s\n", prefix, e.Message, e.File))
 							}
-							walk.Clipboard().SetText(sb.String())
-						walk.MsgBox(dlg, "Copied", "Diagnostic info copied to clipboard", walk.MsgBoxIconInformation)
+							if err := walk.Clipboard().SetText(sb.String()); err != nil {
+							walk.MsgBox(dlg, "Error", "Failed to copy: "+err.Error(), walk.MsgBoxIconError)
+						} else {
+							walk.MsgBox(dlg, "Copied", "Diagnostic info copied to clipboard", walk.MsgBoxIconInformation)
+						}
 						},
 					},
 					PushButton{
@@ -153,7 +156,22 @@ func (m *LogModel) Value(row, col int) interface{} {
 		}
 		return prefix + e.Message
 	case 1:
-		return e.File
+		// Clean temp paths for display
+		f := e.File
+		if idx := strings.Index(f, "nekoarc-open-"); idx >= 0 {
+			// Strip temp prefix, show just the archive-relative path
+			after := f[idx:]
+			if slashIdx := strings.IndexAny(after, "\\/"); slashIdx >= 0 {
+				f = after[slashIdx+1:]
+			}
+		}
+		if idx := strings.Index(f, "nekoarc-browse-"); idx >= 0 {
+			after := f[idx:]
+			if slashIdx := strings.IndexAny(after, "\\/"); slashIdx >= 0 {
+				f = after[slashIdx+1:]
+			}
+		}
+		return f
 	}
 	return ""
 }
