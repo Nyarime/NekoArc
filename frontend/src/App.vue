@@ -17,6 +17,7 @@ const password = ref('')
 const solid = ref(false)
 const sfx = ref(false)
 const extractDir = ref('')
+const packDir = ref('')
 
 // Handle startup file (double-click or right-click menu)
 onMounted(async () => {
@@ -69,6 +70,7 @@ async function doPack() {
   try {
     const r = await Pack({
       input: selectedPath.value,
+      output: packDir.value,
       format: format.value,
       level: parseInt(level.value),
       fec: parseInt(fec.value),
@@ -81,6 +83,11 @@ async function doPack() {
     result.value = { success: false, message: String(e), duration: 0 }
   }
   loading.value = false
+}
+
+async function browsePackDir() {
+  const path = await OpenDirectoryDialog()
+  if (path) { packDir.value = path }
 }
 
 async function browseExtractDir() {
@@ -226,6 +233,18 @@ function clear() {
           </div>
 
           <div class="flex gap-3 pt-1">
+        <div class="bg-gray-900 rounded-xl p-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="text-xs text-gray-500 block mb-1.5">Save to</label>
+              <p class="text-sm text-gray-300">{{ packDir || 'Same directory as source' }}</p>
+            </div>
+            <button @click="browsePackDir" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition">
+              📁 Choose Folder
+            </button>
+          </div>
+        </div>
+
             <button @click="doPack" :disabled="loading"
               class="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 py-3 rounded-xl font-semibold transition text-sm">
               {{ loading ? '⏳ Packing...' : '📦 Pack' }}

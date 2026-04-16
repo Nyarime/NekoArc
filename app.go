@@ -50,6 +50,7 @@ func (a *App) Pack(opts PackOptions) Result {
 
 	base := filepath.Base(opts.Input)
 	output := strings.TrimSuffix(base, filepath.Ext(base)) + ".nya"
+	if opts.Output != "" { output = filepath.Join(opts.Output, filepath.Base(output)) }
 
 	if opts.Format != "" && opts.Format != "nya" {
 		output = strings.TrimSuffix(base, filepath.Ext(base)) + "." + opts.Format
