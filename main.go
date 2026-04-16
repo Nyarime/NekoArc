@@ -34,9 +34,6 @@ func main() {
 			addressBar.SetText(currentDir)
 		}
 		model.SetDir(currentDir)
-		if table != nil {
-			table.SetCurrentIndex(0)
-		}
 	}
 
 	navigateArchive := func(path string) {
@@ -45,9 +42,6 @@ func main() {
 			addressBar.SetText(currentDir)
 		}
 		model.SetArchive(path)
-		if table != nil {
-			table.SetCurrentIndex(0)
-		}
 	}
 
 	goUp := func() {
@@ -61,130 +55,217 @@ func main() {
 		}
 	}
 
+	activateItem := func() {
+		idx := table.CurrentIndex()
+		if idx < 0 || idx >= len(model.items) {
+			return
+		}
+		item := model.items[idx]
+		if item.Name == ".." {
+			goUp()
+		} else if item.IsDir {
+			navigate(item.Path)
+		} else if strings.HasSuffix(strings.ToLower(item.Name), ".nya") && !model.inArchive {
+			navigateArchive(item.Path)
+		} else if !model.inArchive {
+			exec.Command("cmd", "/c", "start", "", item.Path).Start()
+		}
+	}
+
+	// Get selected file paths from table
+	getSelectedPaths := func() []string {
+		indices := table.SelectedIndexes()
+		var paths []string
+		for _, i := range indices {
+			if i >= 0 && i < len(model.items) && model.items[i].Name != ".." {
+				paths = append(paths, model.items[i].Path)
+			}
+		}
+		return paths
+	}
+
+	doAdd := func() {
+		paths := getSelectedPaths()
+		if len(paths) == 0 {
+			// No selection: open file dialog
+			dlg := new(walk.FileDialog)
+			dlg.Title = "Select files to compress"
+			dlg.FilePath = currentDir
+			if ok, _ := dlg.ShowOpenMultiple(mw); ok && len(dlg.FilePaths) > 0 {
+				paths = dlg.FilePaths
+			}
+		}
+		if len(paths) > 0 {
+			showPackDialog(mw, paths)
+		}
+	}
+
+	doExtract := func() {
+		if model.inArchive {
+			showExtractDialog(mw, model.archivePath)
+			return
+		}
+		// Check if a .nya is selected
+		paths := getSelectedPaths()
+		if len(paths) == 1 && strings.HasSuffix(strings.ToLower(paths[0]), ".nya") {
+			showExtractDialog(mw, paths[0])
+			return
+		}
+		dlg := new(walk.FileDialog)
+		dlg.Title = "Select archive"
+		dlg.Filter = "Nyarc Archives (*.nya)|*.nya|All Files (*.*)|*.*"
+		if ok, _ := dlg.ShowOpen(mw); ok {
+			showExtractDialog(mw, dlg.FilePath)
+		}
+	}
+
+	getNyaPath := func() string {
+		if model.inArchive {
+			return model.archivePath
+		}
+		paths := getSelectedPaths()
+		if len(paths) == 1 && strings.HasSuffix(strings.ToLower(paths[0]), ".nya") {
+			return paths[0]
+		}
+		dlg := new(walk.FileDialog)
+		dlg.Title = "Select .nya archive"
+		dlg.Filter = "Nyarc Archives (*.nya)|*.nya"
+		if ok, _ := dlg.ShowOpen(mw); ok {
+			return dlg.FilePath
+		}
+		return ""
+	}
+
+	doTestFn := func() {
+		path := getNyaPath()
+		if path == "" {
+			return
+		}
+		count, ok, err := doTest(path)
+		if err != nil {
+			walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
+		} else if ok {
+			walk.MsgBox(mw, "Test", fmt.Sprintf("OK: %d files, integrity verified", count), walk.MsgBoxIconInformation)
+		} else {
+			walk.MsgBox(mw, "Test", fmt.Sprintf("FAILED: %d files, archive corrupted", count), walk.MsgBoxIconWarning)
+		}
+	}
+
+	doRepairFn := func() {
+		path := getNyaPath()
+		if path == "" {
+			return
+		}
+		total, damaged, repaired, err := doRepair(path)
+		if err != nil {
+			walk.MsgBox(mw, "Repair", err.Error(), walk.MsgBoxIconError)
+		} else if damaged == 0 {
+			walk.MsgBox(mw, "Repair", fmt.Sprintf("No damage found (%d chunks verified)", total), walk.MsgBoxIconInformation)
+		} else {
+			walk.MsgBox(mw, "Repair", fmt.Sprintf("%d chunks, %d damaged, %d repaired", total, damaged, repaired), walk.MsgBoxIconInformation)
+		}
+	}
+
+	doInfoFn := func() {
+		path := getNyaPath()
+		if path == "" {
+			return
+		}
+		showInfoDialog(mw, path)
+	}
+
+	doDeleteFn := func() {
+		if model.inArchive {
+			return
+		}
+		paths := getSelectedPaths()
+		if len(paths) == 0 {
+			return
+		}
+		msg := fmt.Sprintf("Delete %d item(s)?\n", len(paths))
+		for i, p := range paths {
+			if i < 5 {
+				msg += filepath.Base(p) + "\n"
+			}
+		}
+		if len(paths) > 5 {
+			msg += fmt.Sprintf("... and %d more", len(paths)-5)
+		}
+		if walk.MsgBox(mw, "Confirm Delete", msg, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) == walk.DlgCmdYes {
+			for _, p := range paths {
+				os.RemoveAll(p)
+			}
+			model.SetDir(currentDir)
+		}
+	}
+
 	if err := (MainWindow{
 		AssignTo: &mw,
 		Title:    "NekoArc",
 		MinSize:  Size{Width: 700, Height: 500},
 		Size:     Size{Width: 900, Height: 650},
 		Layout:   VBox{MarginsZero: true, SpacingZero: true},
+		// ─── Menu bar (WinRAR style) ───
+		MenuItems: []MenuItem{
+			Menu{
+				Text: "&File",
+				Items: []MenuItem{
+					Action{Text: "&Open Archive...", OnTriggered: func() {
+						dlg := new(walk.FileDialog)
+						dlg.Filter = "Nyarc Archives (*.nya)|*.nya|All Files (*.*)|*.*"
+						if ok, _ := dlg.ShowOpen(mw); ok {
+							navigateArchive(dlg.FilePath)
+						}
+					}},
+					Separator{},
+					Action{Text: "E&xit", OnTriggered: func() { mw.Close() }},
+				},
+			},
+			Menu{
+				Text: "&Commands",
+				Items: []MenuItem{
+					Action{Text: "&Add to archive...", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyA}, OnTriggered: func() { doAdd() }},
+					Action{Text: "&Extract to...", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyE}, OnTriggered: func() { doExtract() }},
+					Action{Text: "&Test archive", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyT}, OnTriggered: func() { doTestFn() }},
+					Action{Text: "&Repair archive", OnTriggered: func() { doRepairFn() }},
+					Action{Text: "Archive &info", Shortcut: Shortcut{Modifiers: walk.ModAlt, Key: walk.KeyI}, OnTriggered: func() { doInfoFn() }},
+					Separator{},
+					Action{Text: "&Delete files", Shortcut: Shortcut{Key: walk.KeyDelete}, OnTriggered: func() { doDeleteFn() }},
+				},
+			},
+			Menu{
+				Text: "&Help",
+				Items: []MenuItem{
+					Action{Text: "&About NekoArc", OnTriggered: func() {
+						walk.MsgBox(mw, "About NekoArc", "NekoArc v0.3.0\n\nNyarc archive manager with FEC self-repair\nhttps://github.com/Nyarime/NekoArc", walk.MsgBoxIconInformation)
+					}},
+				},
+			},
+		},
 		Children: []Widget{
-			// ─── Toolbar ───
+			// ─── Toolbar (WinRAR style) ───
 			Composite{
-				Layout: HBox{Margins: Margins{Left: 4, Top: 4, Right: 4, Bottom: 4}},
+				Layout: HBox{Margins: Margins{Left: 2, Top: 2, Right: 2, Bottom: 2}},
 				Children: []Widget{
-					PushButton{
-						Text: "Add",
-						OnClicked: func() {
-							dlg := new(walk.FileDialog)
-							dlg.Title = "Select files to compress"
-							dlg.FilePath = currentDir
-							if ok, _ := dlg.ShowOpenMultiple(mw); ok && len(dlg.FilePaths) > 0 {
-								showPackDialog(mw, dlg.FilePaths)
-							}
-						},
-					},
-					PushButton{
-						Text: "Extract",
-						OnClicked: func() {
-							if model.inArchive {
-								showExtractDialog(mw, model.archivePath)
-								return
-							}
-							dlg := new(walk.FileDialog)
-							dlg.Title = "Select archive"
-							dlg.Filter = "Nyarc Archives (*.nya)|*.nya|All Files (*.*)|*.*"
-							if ok, _ := dlg.ShowOpen(mw); ok {
-								showExtractDialog(mw, dlg.FilePath)
-							}
-						},
-					},
-					PushButton{
-						Text: "Test",
-						OnClicked: func() {
-							path := ""
-							if model.inArchive {
-								path = model.archivePath
-							} else {
-								dlg := new(walk.FileDialog)
-								dlg.Title = "Select .nya archive to test"
-								dlg.Filter = "Nyarc Archives (*.nya)|*.nya"
-								if ok, _ := dlg.ShowOpen(mw); !ok {
-									return
-								} else {
-									path = dlg.FilePath
-								}
-							}
-							count, ok, err := doTest(path)
-							if err != nil {
-								walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
-							} else if ok {
-								walk.MsgBox(mw, "Test", fmt.Sprintf("OK: %d files, integrity verified", count), walk.MsgBoxIconInformation)
-							} else {
-								walk.MsgBox(mw, "Test", fmt.Sprintf("FAILED: %d files, archive corrupted", count), walk.MsgBoxIconWarning)
-							}
-						},
-					},
-					PushButton{
-						Text: "Repair",
-						OnClicked: func() {
-							path := ""
-							if model.inArchive {
-								path = model.archivePath
-							} else {
-								dlg := new(walk.FileDialog)
-								dlg.Title = "Select .nya archive to repair"
-								dlg.Filter = "Nyarc Archives (*.nya)|*.nya"
-								if ok, _ := dlg.ShowOpen(mw); !ok {
-									return
-								} else {
-									path = dlg.FilePath
-								}
-							}
-							total, damaged, repaired, err := doRepair(path)
-							if err != nil {
-								walk.MsgBox(mw, "Repair", err.Error(), walk.MsgBoxIconError)
-							} else if damaged == 0 {
-								walk.MsgBox(mw, "Repair", fmt.Sprintf("No damage found (%d chunks verified)", total), walk.MsgBoxIconInformation)
-							} else {
-								walk.MsgBox(mw, "Repair", fmt.Sprintf("%d chunks, %d damaged, %d repaired", total, damaged, repaired), walk.MsgBoxIconInformation)
-							}
-						},
-					},
-					PushButton{
-						Text: "Info",
-						OnClicked: func() {
-							if model.inArchive {
-								showInfoDialog(mw, model.archivePath)
-								return
-							}
-							dlg := new(walk.FileDialog)
-							dlg.Title = "Select .nya archive"
-							dlg.Filter = "Nyarc Archives (*.nya)|*.nya"
-							if ok, _ := dlg.ShowOpen(mw); ok {
-								showInfoDialog(mw, dlg.FilePath)
-							}
-						},
-					},
+					PushButton{Text: "Add", OnClicked: func() { doAdd() }},
+					PushButton{Text: "Extract", OnClicked: func() { doExtract() }},
+					PushButton{Text: "Test", OnClicked: func() { doTestFn() }},
+					PushButton{Text: "Repair", OnClicked: func() { doRepairFn() }},
+					PushButton{Text: "Info", OnClicked: func() { doInfoFn() }},
+					VSeparator{},
+					PushButton{Text: "Delete", OnClicked: func() { doDeleteFn() }},
 				},
 			},
 			// ─── Address bar ───
 			Composite{
-				Layout: HBox{Margins: Margins{Left: 4, Top: 0, Right: 4, Bottom: 4}},
+				Layout: HBox{Margins: Margins{Left: 2, Top: 0, Right: 2, Bottom: 2}},
 				Children: []Widget{
-					PushButton{
-						Text:    "..",
-						MaxSize: Size{Width: 30},
-						OnClicked: func() {
-							goUp()
-						},
-					},
 					LineEdit{
 						AssignTo: &addressBar,
 						Text:     currentDir,
 						OnKeyDown: func(key walk.Key) {
 							if key == walk.KeyReturn {
 								dir := addressBar.Text()
-								// Check if it's an archive
 								if strings.HasSuffix(strings.ToLower(dir), ".nya") {
 									if _, err := os.Stat(dir); err == nil {
 										navigateArchive(dir)
@@ -201,32 +282,28 @@ func main() {
 			},
 			// ─── File list ───
 			TableView{
-				AssignTo:         &table,
-				AlternatingRowBG: true,
-				ColumnsOrderable: true,
+				AssignTo:              &table,
+				AlternatingRowBG:      true,
+				ColumnsOrderable:      true,
+				MultiSelection:        true,
+				LastColumnStretched:    true,
 				Columns: []TableViewColumn{
 					{Title: "Name", Width: 300},
 					{Title: "Size", Width: 100, Alignment: AlignFar},
 					{Title: "Modified", Width: 150},
 				},
-				Model: model,
-				OnItemActivated: func() {
-					idx := table.CurrentIndex()
-					if idx < 0 || idx >= len(model.items) {
-						return
-					}
-					item := model.items[idx]
-					if item.IsDir {
-						navigate(item.Path)
-					} else if strings.HasSuffix(strings.ToLower(item.Name), ".nya") {
-						navigateArchive(item.Path)
-					} else if !model.inArchive {
-						// Open file with system default application
-						exec.Command("cmd", "/c", "start", "", item.Path).Start()
-					}
-				},
-				OnCurrentIndexChanged: func() {
-					// Force refresh
+				Model:           model,
+				OnItemActivated: func() { activateItem() },
+				ContextMenuItems: []MenuItem{
+					Action{Text: "Add to archive...", OnTriggered: func() { doAdd() }},
+					Action{Text: "Extract to...", OnTriggered: func() { doExtract() }},
+					Separator{},
+					Action{Text: "Test archive", OnTriggered: func() { doTestFn() }},
+					Action{Text: "Repair archive", OnTriggered: func() { doRepairFn() }},
+					Action{Text: "Archive info", OnTriggered: func() { doInfoFn() }},
+					Separator{},
+					Action{Text: "Open", OnTriggered: func() { activateItem() }},
+					Action{Text: "Delete", OnTriggered: func() { doDeleteFn() }},
 				},
 			},
 		},
@@ -240,15 +317,25 @@ func main() {
 
 	updateStatus := func() {
 		count := len(model.items)
+		dirs := 0
 		var totalSize int64
 		for _, f := range model.items {
-			if !f.IsDir {
+			if f.Name == ".." {
+				continue
+			}
+			if f.IsDir {
+				dirs++
+			} else {
 				totalSize += f.Size
 			}
 		}
-		label := fmt.Sprintf("%d items, %s", count, humanSize(totalSize))
+		files := count - dirs
+		if model.items != nil && model.items[0].Name == ".." {
+			files--
+		}
+		label := fmt.Sprintf("%d folder(s), %d file(s), %s", dirs, files, humanSize(totalSize))
 		if model.inArchive {
-			label = fmt.Sprintf("[%s] %s", filepath.Base(model.archivePath), label)
+			label = fmt.Sprintf("[%s] %d file(s), %s", filepath.Base(model.archivePath), count-1, humanSize(totalSize))
 		}
 		statusBar.SetText(label)
 	}
@@ -270,18 +357,30 @@ func showPackDialog(owner walk.Form, files []string) {
 
 	var totalSize int64
 	for _, f := range files {
-		if info, err := os.Stat(f); err == nil {
+		info, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		if info.IsDir() {
+			filepath.Walk(f, func(_ string, fi os.FileInfo, _ error) error {
+				if fi != nil && !fi.IsDir() {
+					totalSize += fi.Size()
+				}
+				return nil
+			})
+		} else {
 			totalSize += info.Size()
 		}
 	}
 
 	Dialog{
 		AssignTo: &dlg,
-		Title:    fmt.Sprintf("Add to archive (%d files, %s)", len(files), humanSize(totalSize)),
-		MinSize:  Size{Width: 400, Height: 300},
+		Title:    fmt.Sprintf("Add to archive (%d items, %s)", len(files), humanSize(totalSize)),
+		MinSize:  Size{Width: 420, Height: 320},
 		Layout:   VBox{},
 		Children: []Widget{
-			Composite{
+			GroupBox{
+				Title:  "Archive parameters",
 				Layout: Grid{Columns: 2},
 				Children: []Widget{
 					Label{Text: "Compression level (1-19):"},
@@ -290,10 +389,14 @@ func showPackDialog(owner walk.Form, files []string) {
 					NumberEdit{AssignTo: &fecEdit, Value: 100, MinValue: 0, MaxValue: 500},
 					Label{Text: "Password:"},
 					LineEdit{AssignTo: &passwordEdit, PasswordMode: true},
-					Label{Text: ""},
-					CheckBox{AssignTo: &solidCheck, Text: "Solid archive"},
-					Label{Text: ""},
-					CheckBox{AssignTo: &sfxCheck, Text: "Create SFX"},
+				},
+			},
+			GroupBox{
+				Title:  "Options",
+				Layout: VBox{},
+				Children: []Widget{
+					CheckBox{AssignTo: &solidCheck, Text: "Create solid archive"},
+					CheckBox{AssignTo: &sfxCheck, Text: "Create SFX archive"},
 				},
 			},
 			Composite{
@@ -304,7 +407,7 @@ func showPackDialog(owner walk.Form, files []string) {
 						Text: "OK",
 						OnClicked: func() {
 							fdlg := new(walk.FileDialog)
-							fdlg.Title = "Save to folder"
+							fdlg.Title = "Save archive to folder"
 							if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
 								err := doPack(PackOptions{
 									Inputs:   files,
@@ -316,9 +419,9 @@ func showPackDialog(owner walk.Form, files []string) {
 									SFX:      sfxCheck.Checked(),
 								})
 								if err != nil {
-									walk.MsgBox(owner, "Pack Error", err.Error(), walk.MsgBoxIconError)
+									walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
 								} else {
-									walk.MsgBox(owner, "Pack", "Archive created successfully", walk.MsgBoxIconInformation)
+									walk.MsgBox(owner, "Done", "Archive created successfully", walk.MsgBoxIconInformation)
 								}
 							}
 							dlg.Accept()
@@ -343,9 +446,9 @@ func showExtractDialog(owner walk.Form, archivePath string) {
 	if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
 		err := doExtract(archivePath, fdlg.FilePath)
 		if err != nil {
-			walk.MsgBox(owner, "Extract Error", err.Error(), walk.MsgBoxIconError)
+			walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
 		} else {
-			walk.MsgBox(owner, "Extract", "Extracted successfully to:\n"+fdlg.FilePath, walk.MsgBoxIconInformation)
+			walk.MsgBox(owner, "Done", "Extracted successfully to:\n"+fdlg.FilePath, walk.MsgBoxIconInformation)
 		}
 	}
 }
@@ -358,42 +461,29 @@ func showInfoDialog(owner walk.Form, path string) {
 		walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
 		return
 	}
-
 	r, err := nya.Open(path)
 	if err != nil {
-		walk.MsgBox(owner, "Info", fmt.Sprintf(
-			"File: %s\nSize: %s\nNot a valid .nya archive: %s",
-			path, humanSize(fi.Size()), err.Error(),
-		), walk.MsgBoxIconInformation)
+		walk.MsgBox(owner, "Info", fmt.Sprintf("File: %s\nSize: %s\nError: %s", path, humanSize(fi.Size()), err.Error()), walk.MsgBoxIconInformation)
 		return
 	}
-
 	files := r.List()
 	var totalOrig uint64
 	details := ""
 	for _, f := range files {
 		totalOrig += f.OriginalSize
-		details += fmt.Sprintf("  %s (%s)\n", f.Path, humanSize(int64(f.OriginalSize)))
+		details += fmt.Sprintf("  %s  (%s)\n", f.Path, humanSize(int64(f.OriginalSize)))
 	}
-
 	ratio := float64(0)
 	if totalOrig > 0 {
 		ratio = float64(fi.Size()) / float64(totalOrig) * 100
 	}
-
-	msg := fmt.Sprintf(
-		"Archive: %s\nSize: %s\nFiles: %d\nOriginal size: %s\nRatio: %.1f%%\n\nContents:\n%s",
-		filepath.Base(path),
-		humanSize(fi.Size()),
-		len(files),
-		humanSize(int64(totalOrig)),
-		ratio,
-		details,
-	)
-	walk.MsgBox(owner, "Archive Info", msg, walk.MsgBoxIconInformation)
+	walk.MsgBox(owner, "Archive Info", fmt.Sprintf(
+		"Archive: %s\nArchive size: %s\nFiles: %d\nOriginal size: %s\nCompression ratio: %.1f%%\n\n%s",
+		filepath.Base(path), humanSize(fi.Size()), len(files), humanSize(int64(totalOrig)), ratio, details,
+	), walk.MsgBoxIconInformation)
 }
 
-// ─── Sortable File model for TableView ───
+// ─── Sortable File model ───
 
 type FileModel struct {
 	walk.SorterBase
@@ -409,11 +499,25 @@ type FileModel struct {
 func NewFileModel(dir string) *FileModel {
 	m := &FileModel{sortCol: 0, sortAsc: true}
 	m.items = listDir(dir)
+	m.addParentEntry(dir)
 	return m
+}
+
+func (m *FileModel) addParentEntry(dir string) {
+	if dir == "" {
+		return
+	}
+	parent := filepath.Dir(dir)
+	if parent == dir {
+		return
+	}
+	entry := FileEntry{Name: "..", Path: parent, IsDir: true}
+	m.items = append([]FileEntry{entry}, m.items...)
 }
 
 func (m *FileModel) SetDir(dir string) {
 	m.items = listDir(dir)
+	m.addParentEntry(dir)
 	m.inArchive = false
 	m.archivePath = ""
 	m.doSort()
@@ -429,19 +533,16 @@ func (m *FileModel) SetArchive(path string) {
 		return
 	}
 	files := r.List()
-	m.items = nil
+	m.items = []FileEntry{{Name: "..", Path: filepath.Dir(path), IsDir: true}}
 	for _, f := range files {
 		m.items = append(m.items, FileEntry{
-			Name:    f.Path,
-			Path:    f.Path,
-			Size:    int64(f.OriginalSize),
-			IsDir:   false,
-			ModTime: "",
+			Name: f.Path,
+			Path: f.Path,
+			Size: int64(f.OriginalSize),
 		})
 	}
 	m.inArchive = true
 	m.archivePath = path
-	m.doSort()
 	m.PublishRowsReset()
 	if m.onUpdate != nil {
 		m.onUpdate()
@@ -457,12 +558,15 @@ func (m *FileModel) Value(row, col int) interface{} {
 	item := m.items[row]
 	switch col {
 	case 0:
+		if item.Name == ".." {
+			return "[..]"
+		}
 		if item.IsDir {
 			return "[" + item.Name + "]"
 		}
 		return item.Name
 	case 1:
-		if item.IsDir {
+		if item.IsDir || item.Name == ".." {
 			return ""
 		}
 		return humanSize(item.Size)
@@ -472,7 +576,6 @@ func (m *FileModel) Value(row, col int) interface{} {
 	return ""
 }
 
-// Sort implements walk.Sorter
 func (m *FileModel) Sort(col int, order walk.SortOrder) error {
 	m.sortCol = col
 	m.sortAsc = order == walk.SortAscending
@@ -486,7 +589,14 @@ func (m *FileModel) doSort() {
 	asc := m.sortAsc
 	sort.SliceStable(m.items, func(i, j int) bool {
 		a, b := m.items[i], m.items[j]
-		// Directories always first
+		// ".." always first
+		if a.Name == ".." {
+			return true
+		}
+		if b.Name == ".." {
+			return false
+		}
+		// Dirs before files
 		if a.IsDir != b.IsDir {
 			return a.IsDir
 		}
