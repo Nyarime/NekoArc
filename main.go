@@ -316,10 +316,6 @@ func main() {
 	}
 
 	updateStatus := func() {
-		// Set image list on table
-		if model.iconCache != nil && model.iconCache.imageList != nil {
-			table.SetImageList(model.iconCache.imageList)
-		}
 		count := len(model.items)
 		dirs := 0
 		var totalSize int64
@@ -498,26 +494,26 @@ type FileModel struct {
 	archivePath string
 	sortCol     int
 	sortAsc     bool
-	iconCache   *IconCache
 }
 
 func NewFileModel(dir string) *FileModel {
-	m := &FileModel{sortCol: 0, sortAsc: true, iconCache: NewIconCache()}
+	m := &FileModel{sortCol: 0, sortAsc: true}
 	m.items = listDir(dir)
 	m.addParentEntry(dir)
 	return m
 }
 
-// Image returns icon index for a row
+// Image returns the file path for walk to resolve the shell icon automatically
 func (m *FileModel) Image(row int) interface{} {
 	if row < 0 || row >= len(m.items) {
 		return nil
 	}
-	idx := m.iconCache.GetIndex(m.items[row].Name, m.items[row].IsDir)
-	if idx < 0 {
-		return nil
+	item := m.items[row]
+	if item.Name == ".." || item.IsDir {
+		// Return any existing directory path for folder icon
+		return item.Path
 	}
-	return idx
+	return item.Path
 }
 
 func (m *FileModel) addParentEntry(dir string) {
