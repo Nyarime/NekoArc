@@ -690,7 +690,7 @@ func showInfoDialog(owner walk.Form, path string) {
 						Title:  "Info",
 						Layout: Grid{Columns: 2, Margins: Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}},
 						Children: []Widget{
-							Label{Text: "NYA Archive", Font: Font{Bold: true}, ColumnSpan: 2},
+							Label{Text: "NekoArc Archive", Font: Font{Bold: true}, ColumnSpan: 2},
 							Label{Text: "", ColumnSpan: 2},
 							Label{Text: "Format:"},
 							Label{Text: fmt.Sprintf("NYA v%d.%d / Zstd+RaptorQ", r.Header.VersionMajor, r.Header.VersionMinor)},
@@ -706,7 +706,16 @@ func showInfoDialog(owner walk.Form, path string) {
 							Label{Text: fmt.Sprintf("%.1f%%", ratio)},
 							Label{Text: "", ColumnSpan: 2},
 							Label{Text: "FEC recovery:"},
-							Label{Text: "Enabled (RaptorQ)"},
+							Label{Text: func() string {
+								if r.FecLen > 0 && totalOrig > 0 {
+									pct := float64(r.FecLen) / float64(totalOrig) * 100
+									return fmt.Sprintf("%.0f%% (RaptorQ)", pct)
+								}
+								if r.FecLen > 0 {
+									return "Enabled (RaptorQ)"
+								}
+								return "None"
+							}()},
 							Label{Text: "Encryption:"},
 							Label{Text: func() string {
 								if r.Header.Flags&0x01 != 0 {
