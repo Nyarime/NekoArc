@@ -14,7 +14,8 @@ import (
 )
 
 type App struct {
-	startupFile string
+	startupFile   string
+	startupAction string
 	ctx context.Context
 }
 
@@ -223,4 +224,8 @@ func init() { _ = nar.HumanSize }
 
 func (a *App) GetStartupFile() string {
 	return a.startupFile
+}
+
+func (a *App) GetStartupAction() string {
+	return a.startupAction
 }

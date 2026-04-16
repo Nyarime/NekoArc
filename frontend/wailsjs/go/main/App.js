@@ -10,6 +10,10 @@ export function GetFileInfo(arg1) {
   return window['go']['main']['App']['GetFileInfo'](arg1);
 }
 
+export function GetStartupAction() {
+  return window['go']['main']['App']['GetStartupAction']();
+}
+
 export function GetStartupFile() {
   return window['go']['main']['App']['GetStartupFile']();
 }

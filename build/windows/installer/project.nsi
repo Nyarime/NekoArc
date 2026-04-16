@@ -135,3 +135,33 @@ Section "Register Open With"
     WriteRegStr HKCR "NekoArc.Archive" "" "Archive File"
     WriteRegStr HKCR "NekoArc.Archive\shell\open\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "%1"'
 SectionEnd
+
+# Right-click context menu
+Section "Context Menu"
+    ; 所有文件右键: "用NekoArc压缩"
+    WriteRegStr HKCR "Directory\shell\NekoArc.Pack" "" "用 NekoArc 压缩(&N)"
+    WriteRegStr HKCR "Directory\shell\NekoArc.Pack" "Icon" '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
+    WriteRegStr HKCR "Directory\shell\NekoArc.Pack\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "--pack" "%V"'
+    
+    ; 文件夹背景右键: "用NekoArc压缩"  
+    WriteRegStr HKCR "Directory\Background\shell\NekoArc.Pack" "" "用 NekoArc 压缩(&N)"
+    WriteRegStr HKCR "Directory\Background\shell\NekoArc.Pack" "Icon" '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
+    WriteRegStr HKCR "Directory\Background\shell\NekoArc.Pack\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "--pack" "%V"'
+
+    ; 归档文件右键: "用NekoArc解压到当前目录"
+    WriteRegStr HKCR "NekoArc.Archive\shell\NekoArc.ExtractHere" "" "用 NekoArc 解压到当前目录(&E)"
+    WriteRegStr HKCR "NekoArc.Archive\shell\NekoArc.ExtractHere" "Icon" '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
+    WriteRegStr HKCR "NekoArc.Archive\shell\NekoArc.ExtractHere\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "--extract" "%1"'
+    
+    ; .nya专属右键: "修复归档"
+    WriteRegStr HKCR "NekoArc.nya\shell\NekoArc.Repair" "" "用 NekoArc 修复(&R)"
+    WriteRegStr HKCR "NekoArc.nya\shell\NekoArc.Repair" "Icon" '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
+    WriteRegStr HKCR "NekoArc.nya\shell\NekoArc.Repair\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "--repair" "%1"'
+SectionEnd
+
+Section "un.Context Menu"
+    DeleteRegKey HKCR "Directory\shell\NekoArc.Pack"
+    DeleteRegKey HKCR "Directory\Background\shell\NekoArc.Pack"
+    DeleteRegKey HKCR "NekoArc.Archive\shell\NekoArc.ExtractHere"
+    DeleteRegKey HKCR "NekoArc.nya\shell\NekoArc.Repair"
+SectionEnd
