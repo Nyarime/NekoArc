@@ -383,13 +383,17 @@ func main() {
 
 func showPackDialog(owner walk.Form, files []string) {
 	var dlg *walk.Dialog
+	var archiveNameEdit *walk.LineEdit
 	var levelEdit *walk.NumberEdit
 	var fecEdit *walk.NumberEdit
 	var passwordEdit *walk.LineEdit
+	var passwordConfirm *walk.LineEdit
 	var solidCheck *walk.CheckBox
 	var sfxCheck *walk.CheckBox
+	var destDirEdit *walk.LineEdit
 
 	var totalSize int64
+	var fileCount int
 	for _, f := range files {
 		info, err := os.Stat(f)
 		if err != nil {
@@ -399,40 +403,105 @@ func showPackDialog(owner walk.Form, files []string) {
 			filepath.Walk(f, func(_ string, fi os.FileInfo, _ error) error {
 				if fi != nil && !fi.IsDir() {
 					totalSize += fi.Size()
+					fileCount++
 				}
 				return nil
 			})
 		} else {
 			totalSize += info.Size()
+			fileCount++
 		}
 	}
 
+	defaultName := strings.TrimSuffix(filepath.Base(files[0]), filepath.Ext(files[0]))
+	defaultDir := filepath.Dir(files[0])
+
 	Dialog{
 		AssignTo: &dlg,
-		Title:    fmt.Sprintf("Add to archive (%d items, %s)", len(files), humanSize(totalSize)),
-		MinSize:  Size{Width: 420, Height: 320},
+		Title:    "Archive name and parameters",
+		MinSize:  Size{Width: 520, Height: 450},
 		Layout:   VBox{},
 		Children: []Widget{
-			GroupBox{
-				Title:  "Archive parameters",
+			// Archive name at top (like WinRAR)
+			Composite{
 				Layout: Grid{Columns: 2},
 				Children: []Widget{
-					Label{Text: "Compression level (1-19):"},
-					NumberEdit{AssignTo: &levelEdit, Value: 9, MinValue: 1, MaxValue: 19},
-					Label{Text: "FEC recovery (%):"},
-					NumberEdit{AssignTo: &fecEdit, Value: 100, MinValue: 0, MaxValue: 500},
-					Label{Text: "Password:"},
-					LineEdit{AssignTo: &passwordEdit, PasswordMode: true},
+					Label{Text: "Archive name:"},
+					LineEdit{AssignTo: &archiveNameEdit, Text: defaultName + ".nya"},
+					Label{Text: "Destination:"},
+					Composite{
+						Layout: HBox{MarginsZero: true},
+						Children: []Widget{
+							LineEdit{AssignTo: &destDirEdit, Text: defaultDir},
+							PushButton{Text: "...", MaxSize: Size{Width: 30}, OnClicked: func() {
+								fdlg := new(walk.FileDialog)
+								fdlg.Title = "Select destination"
+								if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
+									destDirEdit.SetText(fdlg.FilePath)
+								}
+							}},
+						},
+					},
 				},
 			},
-			GroupBox{
-				Title:  "Options",
-				Layout: VBox{},
-				Children: []Widget{
-					CheckBox{AssignTo: &solidCheck, Text: "Create solid archive"},
-					CheckBox{AssignTo: &sfxCheck, Text: "Create SFX archive"},
+			TabWidget{
+				Pages: []TabPage{
+					// ─── General tab ───
+					{
+						Title:  "General",
+						Layout: VBox{},
+						Children: []Widget{
+							GroupBox{
+								Title:  "Compression",
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									Label{Text: "Compression level (1-19):"},
+									NumberEdit{AssignTo: &levelEdit, Value: 9, MinValue: 1, MaxValue: 19},
+								},
+							},
+							GroupBox{
+								Title:  "Options",
+								Layout: VBox{},
+								Children: []Widget{
+									CheckBox{AssignTo: &solidCheck, Text: "Create solid archive"},
+									CheckBox{AssignTo: &sfxCheck, Text: "Create SFX (self-extracting) archive"},
+								},
+							},
+							Label{Text: fmt.Sprintf("Selected: %d files, %s", fileCount, humanSize(totalSize))},
+						},
+					},
+					// ─── Advanced tab ───
+					{
+						Title:  "Advanced",
+						Layout: VBox{},
+						Children: []Widget{
+							GroupBox{
+								Title:  "FEC Recovery (RaptorQ)",
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									Label{Text: "Recovery data (%):"},
+									NumberEdit{AssignTo: &fecEdit, Value: 100, MinValue: 0, MaxValue: 500},
+									Label{Text: "", ColumnSpan: 2},
+									Label{Text: "0% = no recovery data", ColumnSpan: 2},
+									Label{Text: "100% = can recover from 50% corruption", ColumnSpan: 2},
+									Label{Text: "200% = can recover from 67% corruption", ColumnSpan: 2},
+								},
+							},
+							GroupBox{
+								Title:  "Encryption",
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									Label{Text: "Password:"},
+									LineEdit{AssignTo: &passwordEdit, PasswordMode: true},
+									Label{Text: "Confirm:"},
+									LineEdit{AssignTo: &passwordConfirm, PasswordMode: true},
+								},
+							},
+						},
+					},
 				},
 			},
+			// OK / Cancel
 			Composite{
 				Layout: HBox{},
 				Children: []Widget{
@@ -440,26 +509,28 @@ func showPackDialog(owner walk.Form, files []string) {
 					PushButton{
 						Text: "OK",
 						OnClicked: func() {
-							fdlg := new(walk.FileDialog)
-							fdlg.Title = "Save archive to folder"
-							if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
-								log, err := doPack(PackOptions{
-									Inputs:   files,
-									Output:   fdlg.FilePath,
-									Level:    int(levelEdit.Value()),
-									FEC:      int(fecEdit.Value()),
-									Password: passwordEdit.Text(),
-									Solid:    solidCheck.Checked(),
-									SFX:      sfxCheck.Checked(),
-								})
-								if err != nil {
-									walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
-								} else {
-									walk.MsgBox(owner, "Done", "Archive created successfully", walk.MsgBoxIconInformation)
-								}
-								if log.HasIssues() {
-									log.Show(owner, "Pack")
-								}
+							// Validate password
+							if passwordEdit.Text() != "" && passwordEdit.Text() != passwordConfirm.Text() {
+								walk.MsgBox(owner, "Error", "Passwords do not match", walk.MsgBoxIconError)
+								return
+							}
+							outDir := destDirEdit.Text()
+							log, err := doPack(PackOptions{
+								Inputs:   files,
+								Output:   outDir,
+								Level:    int(levelEdit.Value()),
+								FEC:      int(fecEdit.Value()),
+								Password: passwordEdit.Text(),
+								Solid:    solidCheck.Checked(),
+								SFX:      sfxCheck.Checked(),
+							})
+							if err != nil {
+								walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
+							} else {
+								walk.MsgBox(owner, "Done", "Archive created successfully", walk.MsgBoxIconInformation)
+							}
+							if log.HasIssues() {
+								log.Show(owner, "Pack")
 							}
 							dlg.Accept()
 						},
@@ -477,20 +548,71 @@ func showPackDialog(owner walk.Form, files []string) {
 // ─── Extract dialog ───
 
 func showExtractDialog(owner walk.Form, archivePath string) {
-	fdlg := new(walk.FileDialog)
-	fdlg.Title = "Extract to folder"
-	fdlg.FilePath = filepath.Dir(archivePath)
-	if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
-		log, err := doExtract(archivePath, fdlg.FilePath)
-		if err != nil {
-			walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
-		} else {
-			walk.MsgBox(owner, "Done", "Extracted successfully to:\n"+fdlg.FilePath, walk.MsgBoxIconInformation)
-		}
-		if log.HasIssues() {
-			log.Show(owner, "Extract")
-		}
-	}
+	var dlg *walk.Dialog
+	var destEdit *walk.LineEdit
+	var passwordEdit *walk.LineEdit
+
+	defaultDest := filepath.Dir(archivePath)
+	baseName := strings.TrimSuffix(filepath.Base(archivePath), filepath.Ext(archivePath))
+	defaultDest = filepath.Join(defaultDest, baseName)
+
+	Dialog{
+		AssignTo: &dlg,
+		Title:    "Extraction path and options",
+		MinSize:  Size{Width: 450, Height: 300},
+		Layout:   VBox{},
+		Children: []Widget{
+			Composite{
+				Layout: Grid{Columns: 2},
+				Children: []Widget{
+					Label{Text: "Destination:"},
+					Composite{
+						Layout: HBox{MarginsZero: true},
+						Children: []Widget{
+							LineEdit{AssignTo: &destEdit, Text: defaultDest},
+							PushButton{Text: "...", MaxSize: Size{Width: 30}, OnClicked: func() {
+								fdlg := new(walk.FileDialog)
+								fdlg.Title = "Select destination folder"
+								if ok, _ := fdlg.ShowBrowseFolder(owner); ok {
+									destEdit.SetText(fdlg.FilePath)
+								}
+							}},
+						},
+					},
+					Label{Text: "Password (if encrypted):"},
+					LineEdit{AssignTo: &passwordEdit, PasswordMode: true},
+				},
+			},
+			Label{Text: fmt.Sprintf("Archive: %s", filepath.Base(archivePath))},
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					HSpacer{},
+					PushButton{
+						Text: "OK",
+						OnClicked: func() {
+							dest := destEdit.Text()
+							os.MkdirAll(dest, 0755)
+							log, err := doExtract(archivePath, dest)
+							if err != nil {
+								walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
+							} else {
+								walk.MsgBox(owner, "Done", "Extracted successfully to:\n"+dest, walk.MsgBoxIconInformation)
+							}
+							if log.HasIssues() {
+								log.Show(owner, "Extract")
+							}
+							dlg.Accept()
+						},
+					},
+					PushButton{
+						Text:      "Cancel",
+						OnClicked: func() { dlg.Cancel() },
+					},
+				},
+			},
+		},
+	}.Run(owner)
 }
 
 // ─── Info dialog ───
