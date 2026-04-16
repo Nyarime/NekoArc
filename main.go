@@ -109,6 +109,20 @@ func main() {
 	}
 
 	doAdd := func() {
+		if model.inArchive {
+			// Add files to current archive
+			dlg := new(walk.FileDialog)
+			dlg.Title = "Add files to archive"
+			if ok, _ := dlg.ShowOpenMultiple(mw); ok && len(dlg.FilePaths) > 0 {
+				if err := archiveAddFiles(model.archivePath, dlg.FilePaths); err != nil {
+					walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
+				} else {
+					walk.MsgBox(mw, "Done", fmt.Sprintf("Added %d file(s)", len(dlg.FilePaths)), walk.MsgBoxIconInformation)
+					navigateArchive(model.archivePath)
+				}
+			}
+			return
+		}
 		paths := getSelectedPaths()
 		if len(paths) == 0 {
 			walk.MsgBox(mw, "Add", "Select files or folders in the file browser first", walk.MsgBoxIconInformation)
@@ -193,7 +207,22 @@ func main() {
 
 	doDeleteFn := func() {
 		if model.inArchive {
-			walk.MsgBox(mw, "Delete", "Editing files inside archives is not supported yet.\nExtract the archive first, modify, then recompress.", walk.MsgBoxIconInformation)
+			// Delete files from archive
+			indices := table.SelectedIndexes()
+			names := getArchiveRelPaths(model.items, indices)
+			if len(names) == 0 { return }
+			msg := fmt.Sprintf("Delete %d file(s) from archive?\n", len(names))
+			for i, n := range names {
+				if i < 5 { msg += n + "\n" }
+			}
+			if walk.MsgBox(mw, "Delete from archive", msg, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) == walk.DlgCmdYes {
+				if err := archiveDeleteFiles(model.archivePath, names); err != nil {
+					walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
+				} else {
+					// Refresh archive view
+					navigateArchive(model.archivePath)
+				}
+			}
 			return
 		}
 		paths := getSelectedPaths()
