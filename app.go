@@ -64,15 +64,10 @@ func (a *App) Pack(opts PackOptions) Result {
 	}
 
 	var w *nya.Writer
-	if opts.Solid {
-		if opts.Password != "" {
-		w = nya.NewWriterOpts(f, fec, level, true, []byte(opts.Password))
-	} else {
+	if opts.Password != "" {
+		w = nya.NewWriterOpts(f, fec, level, opts.Solid, []byte(opts.Password))
+	} else if opts.Solid {
 		w = nya.NewWriterOpts(f, fec, level, true)
-	}
-	} else {
-		if opts.Password != "" {
-		w = nya.NewWriterOpts(f, fec, level, false, []byte(opts.Password))
 	} else {
 		w = nya.NewWriter(f, fec, level)
 	}
@@ -95,18 +90,18 @@ func (a *App) Pack(opts PackOptions) Result {
 
 	return Result{
 		Success:  true,
-		Message:  fmt.Sprintf("✅ %s → %s (%s)", opts.Input, output, nya.HumanSize(int(size))),
+		Message:  fmt.Sprintf("OK: %s -> %s (%s)", opts.Input, output, nya.HumanSize(int(size))),
 		Duration: time.Since(start).Seconds(),
 	}
 }
 
-func (a *App) Extract(filePath string) Result {
+func (a *App) Extract(fp string) Result {
 	start := time.Now()
-	if filePath == "" {
+	if fp == "" {
 		return Result{Success: false, Message: "No file selected"}
 	}
 
-	r, err := nya.Open(filePath)
+	r, err := nya.Open(fp)
 	if err != nil {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
@@ -117,39 +112,39 @@ func (a *App) Extract(filePath string) Result {
 	}
 	return Result{
 		Success: true,
-		Message: fmt.Sprintf("✅ Extracted to %s", dir),
+		Message: fmt.Sprintf("OK: Extracted to %s", dir),
 		Duration: time.Since(start).Seconds(),
 	}
 }
 
-func (a *App) Repair(filePath string) Result {
+func (a *App) Repair(fp string) Result {
 	start := time.Now()
-	if filePath == "" {
+	if fp == "" {
 		return Result{Success: false, Message: "No file selected"}
 	}
-	result, err := nya.Repair(filePath, "")
+	result, err := nya.Repair(fp, "")
 	if err != nil {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
 	return Result{
 		Success: true,
-		Message: fmt.Sprintf("✅ %d chunks, %d damaged, %d recovered",
+		Message: fmt.Sprintf("OK: %d chunks, %d damaged, %d recovered",
 			result.TotalChunks, result.CorruptedChunks, result.RepairedChunks),
 		Duration: time.Since(start).Seconds(),
 	}
 }
 
-func (a *App) Test(filePath string) Result {
+func (a *App) Test(fp string) Result {
 	start := time.Now()
-	r, err := nya.Open(filePath)
+	r, err := nya.Open(fp)
 	if err != nil {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
 	ok := r.Verify()
 	if ok {
-		return Result{Success: true, Message: "✅ Archive OK", Duration: time.Since(start).Seconds()}
+		return Result{Success: true, Message: "OK: Archive OK", Duration: time.Since(start).Seconds()}
 	}
-	return Result{Success: false, Message: "❌ Archive corrupted", Duration: time.Since(start).Seconds()}
+	return Result{Success: false, Message: "ERR: Archive corrupted", Duration: time.Since(start).Seconds()}
 }
 
 func (a *App) OpenFileDialog() string {
