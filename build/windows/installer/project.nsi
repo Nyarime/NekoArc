@@ -112,3 +112,26 @@ Section "uninstall"
 
     !insertmacro wails.deleteUninstaller
 SectionEnd
+
+# Register NekoArc as capable app (Open With, not default)
+Section "Register Open With"
+    ; App registration
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities" "ApplicationName" "NekoArc"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities" "ApplicationDescription" "Next-gen archive manager with FEC"
+    
+    ; Supported file types (Open With only, not default)
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".zip" "NekoArc.Archive"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".rar" "NekoArc.Archive"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".7z" "NekoArc.Archive"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".tar" "NekoArc.Archive"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".gz" "NekoArc.Archive"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".bz2" "NekoArc.Archive"
+    WriteRegStr HKLM "SOFTWARE\Nyarime\NekoArc\Capabilities\FileAssociations" ".xz" "NekoArc.Archive"
+    
+    ; Register in RegisteredApplications
+    WriteRegStr HKLM "SOFTWARE\RegisteredApplications" "NekoArc" "SOFTWARE\Nyarime\NekoArc\Capabilities"
+    
+    ; ProgID
+    WriteRegStr HKCR "NekoArc.Archive" "" "Archive File"
+    WriteRegStr HKCR "NekoArc.Archive\shell\open\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "%1"'
+SectionEnd
