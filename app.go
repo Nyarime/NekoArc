@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nyarime/nyarc/pkg/nar"
+	"github.com/nyarime/nyarc/pkg/nya"
 	rt "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -220,7 +220,7 @@ func (a *App) Version() string {
 	return "NekoArc v0.1.0 (Nyarc Engine v0.6.0)"
 }
 
-func init() { _ = nar.HumanSize }
+func init() { _ = nya.HumanSize }
 
 func (a *App) GetStartupFile() string {
 	return a.startupFile
