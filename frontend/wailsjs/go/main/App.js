@@ -22,6 +22,10 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function OpenArchiveDialog() {
+  return window['go']['main']['App']['OpenArchiveDialog']();
+}
+
 export function OpenDirectoryDialog() {
   return window['go']['main']['App']['OpenDirectoryDialog']();
 }
@@ -32,6 +36,10 @@ export function OpenFileDialog() {
 
 export function OpenMultipleFilesDialog() {
   return window['go']['main']['App']['OpenMultipleFilesDialog']();
+}
+
+export function OpenNyaFileDialog() {
+  return window['go']['main']['App']['OpenNyaFileDialog']();
 }
 
 export function Pack(arg1) {

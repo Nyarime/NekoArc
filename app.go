@@ -180,3 +180,24 @@ func (a *App) GetFileInfo(path string) map[string]interface{} {
 func (a *App) GetStartupFile() string   { return a.startupFile }
 func (a *App) GetStartupAction() string { return a.startupAction }
 func (a *App) Version() string          { return "NekoArc v0.1.0 (Nyarc v0.6.2)" }
+
+func (a *App) OpenNyaFileDialog() string {
+	p, _ := rt.OpenFileDialog(a.ctx, rt.OpenDialogOptions{
+		Title: "Select .nya archive",
+		Filters: []rt.FileFilter{
+			{DisplayName: "Nyarc Archives", Pattern: "*.nya"},
+		},
+	})
+	return p
+}
+
+func (a *App) OpenArchiveDialog() string {
+	p, _ := rt.OpenFileDialog(a.ctx, rt.OpenDialogOptions{
+		Title: "Select archive",
+		Filters: []rt.FileFilter{
+			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
+			{DisplayName: "All Files", Pattern: "*"},
+		},
+	})
+	return p
+}

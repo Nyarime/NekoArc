@@ -91,7 +91,7 @@ async function doPack() {
 
 // Extract
 async function chooseExtractFile() {
-  const p = await OpenFileDialog()
+  const p = await OpenNyaFileDialog()
   if (p) {
     extractFile.value = await GetFileInfo(p)
   }
@@ -125,7 +125,8 @@ async function doExtract() {
 const repairFile = ref(null)
 
 async function chooseRepairFile() {
-  const p = await OpenFileDialog()
+  const { OpenNyaFileDialog } = await import("../wailsjs/go/main/App")
+  const p = await OpenNyaFileDialog()
   if (p) repairFile.value = await GetFileInfo(p)
 }
 

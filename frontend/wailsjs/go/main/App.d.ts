@@ -12,11 +12,15 @@ export function GetStartupFile():Promise<string>;
 
 export function Greet(arg1:string):Promise<string>;
 
+export function OpenArchiveDialog():Promise<string>;
+
 export function OpenDirectoryDialog():Promise<string>;
 
 export function OpenFileDialog():Promise<string>;
 
 export function OpenMultipleFilesDialog():Promise<Array<string>>;
+
+export function OpenNyaFileDialog():Promise<string>;
 
 export function Pack(arg1:main.PackOptions):Promise<main.Result>;
 
