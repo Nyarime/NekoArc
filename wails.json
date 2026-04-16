@@ -9,5 +9,56 @@
   "author": {
     "name": "Nyarime",
     "email": "nyarime@users.noreply.github.com"
-  }
+  },
+  "info": {
+    "companyName": "Nyarime",
+    "productName": "NekoArc",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © 2026 Nyarime",
+    "comments": "Next-generation archive manager with self-healing FEC"
+  },
+  "fileAssociations": [
+    {
+      "ext": "nya",
+      "name": "Nyarc Archive",
+      "description": "Nyarc Archive with FEC Protection",
+      "iconName": "nyaIcon",
+      "role": "Editor"
+    },
+    {
+      "ext": "zip",
+      "name": "ZIP Archive",
+      "description": "ZIP Archive",
+      "iconName": "archiveIcon",
+      "role": "Editor"
+    },
+    {
+      "ext": "rar",
+      "name": "RAR Archive",
+      "description": "RAR Archive",
+      "iconName": "archiveIcon",
+      "role": "Editor"
+    },
+    {
+      "ext": "7z",
+      "name": "7-Zip Archive",
+      "description": "7-Zip Archive",
+      "iconName": "archiveIcon",
+      "role": "Editor"
+    },
+    {
+      "ext": "tar",
+      "name": "TAR Archive",
+      "description": "TAR Archive",
+      "iconName": "archiveIcon",
+      "role": "Editor"
+    },
+    {
+      "ext": "gz",
+      "name": "GZip Archive",
+      "description": "GZip Compressed File",
+      "iconName": "archiveIcon",
+      "role": "Editor"
+    }
+  ]
 }

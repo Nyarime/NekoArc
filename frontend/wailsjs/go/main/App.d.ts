@@ -6,6 +6,8 @@ export function Extract(arg1:string):Promise<main.Result>;
 
 export function GetFileInfo(arg1:string):Promise<Record<string, any>>;
 
+export function GetStartupFile():Promise<string>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function OpenDirectoryDialog():Promise<string>;
