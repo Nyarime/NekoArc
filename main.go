@@ -229,6 +229,17 @@ func main() {
 				}
 			}
 		} else {
+			// For binary files, offer to scan
+			ext := strings.ToLower(filepath.Ext(item.Name))
+			binExts := map[string]bool{".bin":{}, ".img":{}, ".fw":{}, ".rom":{}, ".exe":{}, ".dll":{}, ".sys":{}, ".so":{}}
+			if binExts[ext] {
+				if walk.MsgBox(mw, "Binary File", "Scan for embedded data signatures?
+
+" + item.Name, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion) == walk.DlgCmdYes {
+					showScanResults(mw, item.Path)
+					return
+				}
+			}
 			exec.Command("cmd", "/c", "start", "", item.Path).Start()
 		}
 	}
