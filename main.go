@@ -130,11 +130,18 @@ func main() {
 						Text:    "⬆️",
 						MaxSize: Size{Width: 40},
 						OnClicked: func() {
-							parent := filepath.Dir(currentDir)
-							if parent != currentDir {
-								currentDir = parent
+							if model.inArchive {
+								// Go back to archive's directory
+								currentDir = filepath.Dir(model.archivePath)
 								addressBar.SetText(currentDir)
 								model.SetDir(currentDir)
+							} else {
+								parent := filepath.Dir(currentDir)
+								if parent != currentDir {
+									currentDir = parent
+									addressBar.SetText(currentDir)
+									model.SetDir(currentDir)
+								}
 							}
 						},
 					},
@@ -162,7 +169,10 @@ func main() {
 						addressBar.SetText(currentDir)
 						model.SetDir(currentDir)
 					} else if strings.HasSuffix(strings.ToLower(item.Name), ".nya") {
-						showInfoDialog(mw, item.Path)
+						// Browse into archive like WinRAR
+						currentDir = item.Path
+						addressBar.SetText(currentDir)
+						model.SetArchive(item.Path)
 					}
 				},
 			},
@@ -328,8 +338,10 @@ func showInfoDialog(owner walk.Form, path string) {
 
 type FileModel struct {
 	walk.TableModelBase
-	items    []FileEntry
-	onUpdate func()
+	items      []FileEntry
+	onUpdate   func()
+	inArchive  bool
+	archivePath string
 }
 
 func NewFileModel(dir string) *FileModel {
@@ -340,6 +352,32 @@ func NewFileModel(dir string) *FileModel {
 
 func (m *FileModel) SetDir(dir string) {
 	m.items = listDir(dir)
+	m.inArchive = false
+	m.archivePath = ""
+	m.PublishRowsReset()
+	if m.onUpdate != nil {
+		m.onUpdate()
+	}
+}
+
+func (m *FileModel) SetArchive(path string) {
+	r, err := nya.Open(path)
+	if err != nil {
+		return
+	}
+	files := r.List()
+	m.items = nil
+	for _, f := range files {
+		m.items = append(m.items, FileEntry{
+			Name:    f.Path,
+			Path:    f.Path,
+			Size:    int64(f.OriginalSize),
+			IsDir:   false,
+			ModTime: "",
+		})
+	}
+	m.inArchive = true
+	m.archivePath = path
 	m.PublishRowsReset()
 	if m.onUpdate != nil {
 		m.onUpdate()
