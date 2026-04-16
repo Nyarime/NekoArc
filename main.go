@@ -978,17 +978,25 @@ func (m *FileModel) Value(row, col int) interface{} {
 		if item.IsDir {
 			return "File folder"
 		}
-		ext := ""
-		for i := len(item.Name) - 1; i >= 0; i-- {
-			if item.Name[i] == '.' {
-				ext = strings.ToUpper(item.Name[i+1:]) + " File"
-				break
-			}
+		low := strings.ToLower(item.Name)
+		// Detect compound extensions
+		if strings.HasSuffix(low, ".tar.gz") { return "TAR.GZ Archive" }
+		if strings.HasSuffix(low, ".tar.bz2") { return "TAR.BZ2 Archive" }
+		if strings.HasSuffix(low, ".tar.xz") { return "TAR.XZ Archive" }
+		// Archive types
+		archiveTypes := map[string]string{
+			".nya": "NekoArc Archive", ".zip": "ZIP Archive", ".rar": "RAR Archive",
+			".7z": "7Z Archive", ".tar": "TAR Archive", ".gz": "GZ Archive",
+			".bz2": "BZ2 Archive", ".xz": "XZ Archive",
 		}
-		if ext == "" {
-			ext = "File"
+		ext := filepath.Ext(item.Name)
+		if t, ok := archiveTypes[strings.ToLower(ext)]; ok {
+			return t
 		}
-		return ext
+		if ext != "" {
+			return strings.ToUpper(ext[1:]) + " File"
+		}
+		return "File"
 	case 3:
 		return item.ModTime
 	}
