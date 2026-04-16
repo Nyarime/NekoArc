@@ -50,6 +50,17 @@ type Result struct {
 	Duration float64 `json:"duration"`
 }
 
+// nyarcBin finds nyarc executable (same directory first)
+func nyarcBin() string {
+	exe, _ := os.Executable()
+	dir := filepath.Dir(exe)
+	for _, name := range []string{"nyarc.exe", "nyarc"} {
+		p := filepath.Join(dir, name)
+		if _, err := os.Stat(p); err == nil { return p }
+	}
+	return "nyarc"
+}
+
 func (a *App) Pack(opts PackOptions) Result {
 	start := time.Now()
 
@@ -85,7 +96,7 @@ func (a *App) Pack(opts PackOptions) Result {
 		args = append(args, "--sfx")
 	}
 
-	cmd := exec.Command("nyarc", args...)
+	cmd := exec.Command(nyarcBin(), args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return Result{
@@ -115,7 +126,7 @@ func (a *App) Extract(filePath string) Result {
 		args = []string{"-x", filePath}
 	}
 
-	cmd := exec.Command("nyarc", args...)
+	cmd := exec.Command(nyarcBin(), args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return Result{
@@ -137,7 +148,7 @@ func (a *App) Extract(filePath string) Result {
 func (a *App) Repair(filePath string) Result {
 	start := time.Now()
 
-	cmd := exec.Command("nyarc", "-r", filePath)
+	cmd := exec.Command(nyarcBin(), "-r", filePath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return Result{
@@ -159,7 +170,7 @@ func (a *App) Repair(filePath string) Result {
 func (a *App) Test(filePath string) Result {
 	start := time.Now()
 
-	cmd := exec.Command("nyarc", "-t", filePath)
+	cmd := exec.Command(nyarcBin(), "-t", filePath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return Result{
@@ -177,6 +188,18 @@ func (a *App) Test(filePath string) Result {
 }
 
 // === File Dialog ===
+
+func (a *App) OpenMultipleFilesDialog() []string {
+	paths, err := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{
+		Title: "Select files",
+		Filters: []rt.FileFilter{
+			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
+			{DisplayName: "All Files", Pattern: "*"},
+		},
+	})
+	if err != nil { return nil }
+	return paths
+}
 
 func (a *App) OpenFileDialog() string {
 	path, err := rt.OpenFileDialog(a.ctx, rt.OpenDialogOptions{

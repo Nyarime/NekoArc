@@ -16,6 +16,8 @@ export function OpenDirectoryDialog():Promise<string>;
 
 export function OpenFileDialog():Promise<string>;
 
+export function OpenMultipleFilesDialog():Promise<Array<string>>;
+
 export function Pack(arg1:main.PackOptions):Promise<main.Result>;
 
 export function PackWithProgress(arg1:main.PackOptions):Promise<main.Result>;

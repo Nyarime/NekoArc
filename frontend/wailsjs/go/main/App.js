@@ -30,6 +30,10 @@ export function OpenFileDialog() {
   return window['go']['main']['App']['OpenFileDialog']();
 }
 
+export function OpenMultipleFilesDialog() {
+  return window['go']['main']['App']['OpenMultipleFilesDialog']();
+}
+
 export function Pack(arg1) {
   return window['go']['main']['App']['Pack'](arg1);
 }
