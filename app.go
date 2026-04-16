@@ -229,3 +229,27 @@ func (a *App) GetStartupFile() string {
 func (a *App) GetStartupAction() string {
 	return a.startupAction
 }
+
+// PackWithProgress 带进度的打包
+func (a *App) PackWithProgress(opts PackOptions) Result {
+	start := time.Now()
+	if opts.Input == "" {
+		return Result{Success: false, Message: "No input selected"}
+	}
+
+	// 发送进度事件
+	rt.EventsEmit(a.ctx, "progress", map[string]interface{}{
+		"stage": "packing",
+		"percent": 0,
+	})
+
+	r := a.Pack(opts)
+
+	rt.EventsEmit(a.ctx, "progress", map[string]interface{}{
+		"stage": "done",
+		"percent": 100,
+	})
+
+	r.Duration = time.Since(start).Seconds()
+	return r
+}

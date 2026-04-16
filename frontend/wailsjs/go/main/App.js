@@ -34,6 +34,10 @@ export function Pack(arg1) {
   return window['go']['main']['App']['Pack'](arg1);
 }
 
+export function PackWithProgress(arg1) {
+  return window['go']['main']['App']['PackWithProgress'](arg1);
+}
+
 export function Repair(arg1) {
   return window['go']['main']['App']['Repair'](arg1);
 }

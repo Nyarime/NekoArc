@@ -18,6 +18,8 @@ export function OpenFileDialog():Promise<string>;
 
 export function Pack(arg1:main.PackOptions):Promise<main.Result>;
 
+export function PackWithProgress(arg1:main.PackOptions):Promise<main.Result>;
+
 export function Repair(arg1:string):Promise<main.Result>;
 
 export function Test(arg1:string):Promise<main.Result>;
