@@ -36,7 +36,7 @@ func main() {
 		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
 			dir = resolved
 		}
-		// Fix drive letter paths: D:. → D:		if len(dir) == 3 && dir[1] == ':' && dir[2] == '.' {
+// Fix drive letter paths: D:. to D:\
 			dir = dir[:2] + string(filepath.Separator)
 		}
 		if len(dir) == 2 && dir[1] == ':' {
