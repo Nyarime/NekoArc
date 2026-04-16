@@ -39,6 +39,8 @@ func main() {
 	var model *FileModel
 	var tb *walk.ToolBar
 
+	// Cleanup leftover temp files from previous session
+	cleanupOldTemp()
 	cfg := loadConfig()
 	currentDir := ""
 	home, _ := os.UserHomeDir()
@@ -1276,4 +1278,22 @@ func (m *FileModel) filterArchiveEntries() {
 			}
 		}
 	}
+}
+
+func cleanupOldTemp() {
+	tmpDir := os.TempDir()
+	entries, _ := os.ReadDir(tmpDir)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "nekoarc-") {
+			path := filepath.Join(tmpDir, e.Name())
+			os.RemoveAll(path)
+		}
+	}
+	// Also clean icon temp files
+	matches, _ := filepath.Glob(filepath.Join(tmpDir, "nekoarc_icon.*"))
+	for _, m := range matches {
+		os.Remove(m)
+	}
+	// Clean folder icon
+	os.RemoveAll(filepath.Join(tmpDir, "nekoarc_folder"))
 }
