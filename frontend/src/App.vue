@@ -278,7 +278,7 @@ function clear() {
         <div v-if="!fileInfo" class="border-2 border-dashed border-gray-700 rounded-2xl p-16 text-center hover:border-green-600 transition-colors">
           <div class="text-6xl mb-4">🔧</div>
           <p class="text-xl font-medium text-gray-300 mb-2">Repair a damaged .nya archive</p>
-          <p class="text-sm text-gray-500 mb-6">RaptorQ FEC recovers up to <span class="text-green-400 font-semibold">50% damage</span></p>
+          <p class="text-sm text-gray-500 mb-6">RaptorQ FEC recovers up to <span class="text-green-400 font-semibold">66%+ damage</span> (configurable FEC)</p>
           <button @click="browseFile" class="bg-green-600 hover:bg-green-500 px-8 py-3 rounded-xl font-medium transition">
             📄 Select Archive
           </button>
@@ -327,7 +327,7 @@ function clear() {
           <div><span class="text-gray-500">Compression</span><br><span class="text-gray-300">Zstd 1-19</span></div>
           <div><span class="text-gray-500">Hash</span><br><span class="text-gray-300">BLAKE3</span></div>
           <div><span class="text-gray-500">Encryption</span><br><span class="text-gray-300">AES-256-GCM</span></div>
-          <div><span class="text-gray-500">Max Recovery</span><br><span class="text-green-400 font-bold">50%</span></div>
+          <div><span class="text-gray-500">Max Recovery</span><br><span class="text-green-400 font-bold">Up to 66%+</span></div>
         </div>
         <div class="bg-gray-900 rounded-xl p-6 text-sm space-y-2">
           <h3 class="font-semibold text-gray-400 text-xs uppercase tracking-wider mb-3">Supported Formats</h3>
