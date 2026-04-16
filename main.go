@@ -154,34 +154,50 @@ func main() {
 			}
 		} else if model.inArchive {
 			// Inside archive: extract file to temp and open
-			if isArchiveFile(item.Name) {
-				// Nested archive: extract to temp then browse
-				logicalPath := model.archivePath + string(filepath.Separator) + item.Name
+			extractToTemp := func() string {
 				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
 				if tmpDir != "" { trackTempDir(tmpDir) }
-				r, err := nya.Open(model.archivePath)
-				if err == nil {
-					r.Extract(tmpDir)
-					extracted := filepath.Join(tmpDir, item.Name)
-					if _, err := os.Stat(extracted); err == nil {
-						navigateGenericArchive(extracted)
-						// Override with logical path
-						currentDir = logicalPath
-						if addressBar != nil { addressBar.SetText(logicalPath) }
-						if mw != nil { mw.SetTitle(item.Name + " - NekoArc") }
+				archPath := model.archivePath
+				// Try .nya first
+				if strings.HasSuffix(strings.ToLower(archPath), ".nya") {
+					if r, err := nya.Open(archPath); err == nil {
+						r.Extract(tmpDir)
 					}
+				} else {
+					// Generic: use archiver
+					nya.ExtractAny(archPath, tmpDir)
+				}
+				return tmpDir
+			}
+
+			if isArchiveFile(item.Name) {
+				logicalPath := model.archivePath + string(filepath.Separator) + item.Name
+				tmpDir := extractToTemp()
+				extracted := filepath.Join(tmpDir, item.Name)
+				if _, err := os.Stat(extracted); err == nil {
+					navigateGenericArchive(extracted)
+					currentDir = logicalPath
+					if addressBar != nil { addressBar.SetText(logicalPath) }
+					if mw != nil { mw.SetTitle(item.Name + " - NekoArc") }
 				}
 			} else {
-				// Regular file: extract to temp and open
-				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
-				if tmpDir != "" { trackTempDir(tmpDir) }
-				r, err := nya.Open(model.archivePath)
-				if err == nil {
-					r.Extract(tmpDir)
-					extracted := filepath.Join(tmpDir, item.Name)
-					if _, err := os.Stat(extracted); err == nil {
-						exec.Command("cmd", "/c", "start", "", extracted).Start()
+				// Regular file: check if already on disk (extracted archive)
+				if filepath.IsAbs(item.Path) {
+					if _, err := os.Stat(item.Path); err == nil {
+						exec.Command("cmd", "/c", "start", "", item.Path).Start()
+						return
 					}
+				}
+				// Extract from archive to temp
+				tmpDir := extractToTemp()
+				// Try direct path
+				extracted := filepath.Join(tmpDir, item.Name)
+				// Also try with subdir prefix
+				if model.archiveSubDir != "" {
+					extracted = filepath.Join(tmpDir, model.archiveSubDir, item.Name)
+				}
+				if _, err := os.Stat(extracted); err == nil {
+					exec.Command("cmd", "/c", "start", "", extracted).Start()
 				}
 			}
 		} else {
