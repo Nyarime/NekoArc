@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue'
-import { Pack, Extract, Repair, Test, OpenFileDialog, OpenDirectoryDialog, GetFileInfo, Version } from '../wailsjs/go/main/App'
+import { ref, onMounted } from 'vue'
+import { Pack, Extract, Repair, Test, OpenFileDialog, OpenDirectoryDialog, GetFileInfo, Version, GetStartupFile, GetStartupAction } from '../wailsjs/go/main/App'
 
 const currentView = ref('home')
 const selectedPath = ref('')
@@ -16,6 +16,18 @@ const fec = ref(10)
 const password = ref('')
 const solid = ref(false)
 const sfx = ref(false)
+
+// Handle startup file (double-click or right-click menu)
+onMounted(async () => {
+  const file = await GetStartupFile()
+  const action = await GetStartupAction()
+  if (file) {
+    await selectPath(file)
+    if (action === 'extract') { doExtract() }
+    else if (action === 'repair') { currentView.value = 'repair'; doRepair() }
+    else if (action === 'pack') { doPack() }
+  }
+})
 
 async function browseFile() {
   const path = await OpenFileDialog()
