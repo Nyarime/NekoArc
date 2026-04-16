@@ -319,6 +319,20 @@ func main() {
 					Action{Text: "Archive info", OnTriggered: func() { doInfoFn() }},
 					Separator{},
 					Action{Text: "Open", OnTriggered: func() { activateItem() }},
+					Action{Text: "Copy to...", OnTriggered: func() {
+						paths := getSelectedPaths()
+						if len(paths) == 0 { return }
+						fdlg := new(walk.FileDialog)
+						fdlg.Title = "Copy to folder"
+						if ok, _ := fdlg.ShowBrowseFolder(mw); ok {
+							for _, src := range paths {
+								dst := filepath.Join(fdlg.FilePath, filepath.Base(src))
+								copyFileOrDir(src, dst)
+							}
+							walk.MsgBox(mw, "Done", fmt.Sprintf("Copied %d item(s)", len(paths)), walk.MsgBoxIconInformation)
+						}
+					}},
+					Separator{},
 					Action{Text: "Delete", OnTriggered: func() { doDeleteFn() }},
 				},
 			},

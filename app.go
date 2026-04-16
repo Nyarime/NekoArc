@@ -221,3 +221,33 @@ func doRepair(path string) (*DiagLog, int, int, int, error) {
 func humanSize(b int64) string {
 	return nya.HumanSize(int(b))
 }
+
+// copyFileOrDir copies a file or directory
+func copyFileOrDir(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil { return err }
+	if info.IsDir() {
+		return filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+			if err != nil { return err }
+			rel, _ := filepath.Rel(src, path)
+			target := filepath.Join(dst, rel)
+			if fi.IsDir() {
+				return os.MkdirAll(target, 0755)
+			}
+			return copyFile(path, target)
+		})
+	}
+	return copyFile(src, dst)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil { return err }
+	defer in.Close()
+	os.MkdirAll(filepath.Dir(dst), 0755)
+	out, err := os.Create(dst)
+	if err != nil { return err }
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
