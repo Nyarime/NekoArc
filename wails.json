@@ -15,7 +15,7 @@
     "productName": "NekoArc",
     "productVersion": "0.1.0",
     "copyright": "Copyright \u00a9 2026 Nyarime",
-    "comments": "Next-generation archive manager with self-healing FEC"
+    "comments": "Next-gen archive manager with FEC. Minimum: Windows 7 SP1 / macOS 10.13 / Linux (GTK3)"
   },
   "fileAssociations": [
     {
