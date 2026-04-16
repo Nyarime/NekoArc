@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"fmt"
 	"io"
 	"os"
@@ -249,4 +250,42 @@ func copyFile(src, dst string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+// listGenericArchive lists contents of zip/rar/7z/tar etc
+func listGenericArchive(path string) ([]FileEntry, error) {
+	var entries []FileEntry
+
+	// Use archiver to walk archive
+	f, err := os.Open(path)
+	if err != nil { return nil, err }
+	defer f.Close()
+
+	// Try zip first (most common)
+	if strings.HasSuffix(strings.ToLower(path), ".zip") {
+		fi, _ := f.Stat()
+		zr, err := zip.NewReader(f, fi.Size())
+		if err != nil { return nil, err }
+		for _, zf := range zr.File {
+			entries = append(entries, FileEntry{
+				Name:    zf.Name,
+				Path:    zf.Name,
+				Size:    int64(zf.UncompressedSize64),
+				IsDir:   zf.FileInfo().IsDir(),
+				ModTime: zf.Modified.Format("2006-01-02 15:04"),
+			})
+		}
+		return entries, nil
+	}
+
+	return nil, fmt.Errorf("unsupported format for browsing")
+}
+
+func isArchiveFile(path string) bool {
+	low := strings.ToLower(path)
+	return strings.HasSuffix(low, ".nya") || strings.HasSuffix(low, ".zip") ||
+		strings.HasSuffix(low, ".rar") || strings.HasSuffix(low, ".7z") ||
+		strings.HasSuffix(low, ".tar") || strings.HasSuffix(low, ".gz") ||
+		strings.HasSuffix(low, ".bz2") || strings.HasSuffix(low, ".xz") ||
+		strings.HasSuffix(low, ".tar.gz") || strings.HasSuffix(low, ".tar.bz2")
 }

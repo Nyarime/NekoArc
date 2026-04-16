@@ -59,6 +59,21 @@ func main() {
 		}
 	}
 
+	navigateGenericArchive := func(path string) {
+		currentDir = path
+		if addressBar != nil {
+			addressBar.SetText(currentDir)
+		}
+		entries, err := listGenericArchive(path)
+		if err != nil {
+			walk.MsgBox(mw, "Error", "Cannot browse archive: "+err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		model.SetGenericArchive(path, entries)
+		if table != nil { table.Invalidate() }
+		if mw != nil { mw.SetTitle(filepath.Base(path) + " - NekoArc") }
+	}
+
 	goUp := func() {
 		if model.inArchive {
 			navigate(filepath.Dir(model.archivePath))
@@ -89,8 +104,13 @@ func main() {
 			goUp()
 		} else if item.IsDir {
 			navigate(item.Path)
-		} else if strings.HasSuffix(strings.ToLower(item.Name), ".nya") && !model.inArchive {
-			navigateArchive(item.Path)
+		} else if isArchiveFile(item.Path) && !model.inArchive {
+			if strings.HasSuffix(strings.ToLower(item.Name), ".nya") {
+				navigateArchive(item.Path)
+			} else {
+				// Other archives: list contents via archiver
+				navigateGenericArchive(item.Path)
+			}
 		} else if !model.inArchive {
 			exec.Command("cmd", "/c", "start", "", item.Path).Start()
 		}
@@ -131,21 +151,13 @@ func main() {
 		showPackDialog(mw, paths)
 	}
 
-	isArchive := func(path string) bool {
-		low := strings.ToLower(path)
-		return strings.HasSuffix(low, ".nya") || strings.HasSuffix(low, ".zip") ||
-			strings.HasSuffix(low, ".rar") || strings.HasSuffix(low, ".7z") ||
-			strings.HasSuffix(low, ".tar") || strings.HasSuffix(low, ".gz") ||
-			strings.HasSuffix(low, ".bz2") || strings.HasSuffix(low, ".xz")
-	}
-
 	doExtract := func() {
 		if model.inArchive {
 			showExtractDialog(mw, model.archivePath)
 			return
 		}
 		paths := getSelectedPaths()
-		if len(paths) == 1 && isArchive(paths[0]) {
+		if len(paths) == 1 && isArchiveFile(paths[0]) {
 			showExtractDialog(mw, paths[0])
 			return
 		}
@@ -966,4 +978,24 @@ func (m *FileModel) doSort() {
 		}
 		return less
 	})
+}
+
+func (m *FileModel) SetGenericArchive(path string, entries []FileEntry) {
+	m.items = []FileEntry{{Name: "..", Path: filepath.Dir(path), IsDir: true}}
+	m.items = append(m.items, entries...)
+	m.inArchive = true
+	m.archivePath = path
+
+	var totalSize int64
+	for _, e := range entries {
+		if !e.IsDir { totalSize += e.Size }
+	}
+	fi, _ := os.Stat(path)
+	archiveSize := int64(0)
+	if fi != nil { archiveSize = fi.Size() }
+
+	m.archiveInfo = fmt.Sprintf("Archive: %s, %d files, unpacked: %s, packed: %s",
+		filepath.Ext(path), len(entries), humanSize(totalSize), humanSize(archiveSize))
+	m.PublishRowsReset()
+	if m.onUpdate != nil { m.onUpdate() }
 }
