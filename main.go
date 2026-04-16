@@ -235,6 +235,7 @@ func main() {
 
 	// Get selected file paths from table
 	getSelectedPaths := func() []string {
+		// Try multi-selection first
 		indices := table.SelectedIndexes()
 		var paths []string
 		for _, i := range indices {
@@ -242,7 +243,13 @@ func main() {
 				paths = append(paths, model.items[i].Path)
 			}
 		}
-		return paths
+		if len(paths) > 0 { return paths }
+		// Fallback: current focused row
+		idx := table.CurrentIndex()
+		if idx >= 0 && idx < len(model.items) && model.items[idx].Name != ".." {
+			return []string{model.items[idx].Path}
+		}
+		return nil
 	}
 
 	doAdd := func() {
