@@ -100,7 +100,7 @@ func (a *App) Pack(opts PackOptions) Result {
 	}
 }
 
-func (a *App) Extract(filePath string, destDir string) Result {
+func (a *App) Extract(filePath string) Result {
 	start := time.Now()
 	if filePath == "" {
 		return Result{Success: false, Message: "No file selected"}
@@ -111,7 +111,6 @@ func (a *App) Extract(filePath string, destDir string) Result {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
 	dir := "."
-	if destDir != "" { dir = destDir }
 	err = r.Extract(dir)
 	if err != nil {
 		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}

@@ -113,7 +113,7 @@ async function doExtract() {
   loading.value = true
   result.value = null
   try {
-    const r = await Extract(extractFile.value.path, extractDir.value)
+    const r = await Extract(extractFile.value.path)
     result.value = r
   } catch(e) {
     result.value = { success: false, message: String(e), duration: 0 }
