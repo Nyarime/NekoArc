@@ -259,7 +259,14 @@ func main() {
 		}
 		paths := getSelectedPaths()
 		if len(paths) == 0 {
-			// No selection: open file dialog
+			// Try current index as fallback
+			idx := table.CurrentIndex()
+			if idx >= 0 && idx < len(model.items) && model.items[idx].Name != ".." {
+				paths = []string{model.items[idx].Path}
+			}
+		}
+		if len(paths) == 0 {
+			// Still nothing: open file dialog
 			dlg := new(walk.FileDialog)
 			dlg.Title = "Select files to compress"
 			dlg.FilePath = currentDir
