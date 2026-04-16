@@ -14,6 +14,23 @@ import (
 	. "github.com/lxn/walk/declarative"
 )
 
+var tempDirs []string
+
+func trackTempDir(dir string) {
+	tempDirs = append(tempDirs, dir)
+}
+
+func cleanupTemp() {
+	for _, d := range tempDirs {
+		os.RemoveAll(d)
+	}
+	// Also clean nekoarc_icon.* temp files
+	matches, _ := filepath.Glob(filepath.Join(os.TempDir(), "nekoarc_icon.*"))
+	for _, m := range matches {
+		os.Remove(m)
+	}
+}
+
 func main() {
 	var mw *walk.MainWindow
 	var addressBar *walk.LineEdit
@@ -141,6 +158,7 @@ func main() {
 				// Nested archive: extract to temp then browse
 				logicalPath := model.archivePath + string(filepath.Separator) + item.Name
 				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
+				if tmpDir != "" { trackTempDir(tmpDir) }
 				r, err := nya.Open(model.archivePath)
 				if err == nil {
 					r.Extract(tmpDir)
@@ -156,6 +174,7 @@ func main() {
 			} else {
 				// Regular file: extract to temp and open
 				tmpDir, _ := os.MkdirTemp("", "nekoarc-open-*")
+				if tmpDir != "" { trackTempDir(tmpDir) }
 				r, err := nya.Open(model.archivePath)
 				if err == nil {
 					r.Extract(tmpDir)
@@ -516,6 +535,7 @@ func main() {
 	updateStatus()
 
 	mw.Run()
+	cleanupTemp()
 }
 
 // ─── Pack dialog ───
