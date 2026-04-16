@@ -475,6 +475,7 @@ func showPackDialog(owner walk.Form, files []string) {
 	var passwordConfirm *walk.LineEdit
 	var solidCheck *walk.CheckBox
 	var sfxCheck *walk.CheckBox
+	var fecCheck *walk.CheckBox
 	var splitEdit *walk.LineEdit
 	var destDirEdit *walk.LineEdit
 
@@ -570,15 +571,25 @@ func showPackDialog(owner walk.Form, files []string) {
 						Layout: VBox{},
 						Children: []Widget{
 							GroupBox{
-								Title:  "FEC Recovery (RaptorQ)",
+								Title:  "Recovery Record (RaptorQ FEC)",
 								Layout: Grid{Columns: 2},
 								Children: []Widget{
+									Label{Text: ""},
+									CheckBox{AssignTo: &fecCheck, Text: "Add recovery record", OnCheckedChanged: func() {
+										if fecCheck.Checked() {
+											fecEdit.SetEnabled(true)
+											if fecEdit.Value() == 0 { fecEdit.SetValue(3) }
+										} else {
+											fecEdit.SetEnabled(false)
+											fecEdit.SetValue(0)
+										}
+									}},
 									Label{Text: "Recovery data (%):"},
-									NumberEdit{AssignTo: &fecEdit, Value: 3, MinValue: 0, MaxValue: 500},
+									NumberEdit{AssignTo: &fecEdit, Value: 0, MinValue: 0, MaxValue: 500, Enabled: false},
 									Label{Text: "", ColumnSpan: 2},
-									Label{Text: "0% = no recovery data (not recommended)", ColumnSpan: 2},
-									Label{Text: "10% = can recover minor corruption (recommended)", ColumnSpan: 2},
-									Label{Text: "100% = can recover from 50% corruption (extreme)", ColumnSpan: 2},
+									Label{Text: "3-5% = recommended (handles network/disk corruption)", ColumnSpan: 2},
+									Label{Text: "10% = strong recovery", ColumnSpan: 2},
+									Label{Text: "100% = extreme (can recover 50% data loss)", ColumnSpan: 2},
 								},
 							},
 							GroupBox{
