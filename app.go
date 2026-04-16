@@ -115,7 +115,7 @@ func doPack(opts PackOptions) (*DiagLog, error) {
 			log.Error("Cannot create output file: "+err.Error(), output)
 			return log, err
 		}
-		defer f.Close()
+		defer 
 		ws = f
 	}
 
@@ -131,7 +131,7 @@ func doPack(opts PackOptions) (*DiagLog, error) {
 	for _, input := range opts.Inputs {
 		if err := w.AddFile(input); err != nil {
 			log.Error("Failed to add: "+err.Error(), input)
-			f.Close()
+			
 			return log, err
 		}
 		log.Info("Added", input)
