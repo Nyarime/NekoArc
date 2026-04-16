@@ -63,7 +63,16 @@ func main() {
 			navigate(filepath.Dir(model.archivePath))
 		} else if currentDir != "" {
 			parent := filepath.Dir(currentDir)
-			if parent != currentDir {
+			if parent == currentDir {
+				// At drive root (C:\) → go to "My Computer" (drive list)
+				currentDir = ""
+				if addressBar != nil {
+					addressBar.SetText("")
+				}
+				model.SetDir("")
+				if table != nil { table.Invalidate() }
+				if mw != nil { mw.SetTitle("NekoArc") }
+			} else {
 				navigate(parent)
 			}
 		}
@@ -756,11 +765,12 @@ func (m *FileModel) Image(row int) interface{} {
 
 func (m *FileModel) addParentEntry(dir string) {
 	if dir == "" {
-		return
+		return // Already at "My Computer"
 	}
 	parent := filepath.Dir(dir)
 	if parent == dir {
-		return
+		// At drive root → parent is "My Computer" (empty = drive list)
+		parent = ""
 	}
 	entry := FileEntry{Name: "..", Path: parent, IsDir: true}
 	m.items = append([]FileEntry{entry}, m.items...)
