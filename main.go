@@ -39,6 +39,9 @@ func main() {
 		if table != nil {
 			table.Invalidate()
 		}
+		if mw != nil {
+			mw.SetTitle("NekoArc")
+		}
 	}
 
 	navigateArchive := func(path string) {
@@ -49,6 +52,9 @@ func main() {
 		model.SetArchive(path)
 		if table != nil {
 			table.Invalidate()
+		}
+		if mw != nil {
+			mw.SetTitle(filepath.Base(path) + " - NekoArc")
 		}
 	}
 
@@ -363,7 +369,7 @@ func main() {
 		}
 		label := fmt.Sprintf("%d folder(s), %d file(s), %s", dirs, files, humanSize(totalSize))
 		if model.inArchive {
-			label = fmt.Sprintf("[%s] %d file(s), %s", filepath.Base(model.archivePath), count-1, humanSize(totalSize))
+			label = model.archiveInfo
 		}
 		statusBar.SetText(label)
 	}
@@ -500,21 +506,94 @@ func showInfoDialog(owner walk.Form, path string) {
 		walk.MsgBox(owner, "Info", fmt.Sprintf("File: %s\nSize: %s\nError: %s", path, humanSize(fi.Size()), err.Error()), walk.MsgBoxIconInformation)
 		return
 	}
+
 	files := r.List()
 	var totalOrig uint64
-	details := ""
 	for _, f := range files {
 		totalOrig += f.OriginalSize
-		details += fmt.Sprintf("  %s  (%s)\n", f.Path, humanSize(int64(f.OriginalSize)))
 	}
+
 	ratio := float64(0)
 	if totalOrig > 0 {
 		ratio = float64(fi.Size()) / float64(totalOrig) * 100
 	}
-	walk.MsgBox(owner, "Archive Info", fmt.Sprintf(
-		"Archive: %s\nArchive size: %s\nFiles: %d\nOriginal size: %s\nCompression ratio: %.1f%%\n\n%s",
-		filepath.Base(path), humanSize(fi.Size()), len(files), humanSize(int64(totalOrig)), ratio, details,
-	), walk.MsgBoxIconInformation)
+
+	// Count dirs vs files
+	dirCount := 0
+	fileCount := 0
+	for _, f := range files {
+		if f.EntryType == 1 {
+			dirCount++
+		} else {
+			fileCount++
+		}
+	}
+
+	var dlg *walk.Dialog
+
+	Dialog{
+		AssignTo: &dlg,
+		Title:    fmt.Sprintf("Archive: %s", filepath.Base(path)),
+		MinSize:  Size{Width: 400, Height: 350},
+		Layout:   VBox{},
+		Children: []Widget{
+			TabWidget{
+				Pages: []TabPage{
+					{
+						Title:  "Info",
+						Layout: Grid{Columns: 2, Margins: Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}},
+						Children: []Widget{
+							Label{Text: "NYA Archive", Font: Font{Bold: true}, ColumnSpan: 2},
+							Label{Text: "", ColumnSpan: 2},
+							Label{Text: "Format:"},
+							Label{Text: fmt.Sprintf("NYA v%d.%d / Zstd+RaptorQ", r.Header.VersionMajor, r.Header.VersionMinor)},
+							Label{Text: "Folders:"},
+							Label{Text: fmt.Sprintf("%d", dirCount)},
+							Label{Text: "Files:"},
+							Label{Text: fmt.Sprintf("%d", fileCount)},
+							Label{Text: "Total size:"},
+							Label{Text: fmt.Sprintf("%s (%d bytes)", humanSize(int64(totalOrig)), totalOrig)},
+							Label{Text: "Packed size:"},
+							Label{Text: fmt.Sprintf("%s (%d bytes)", humanSize(fi.Size()), fi.Size())},
+							Label{Text: "Compression ratio:"},
+							Label{Text: fmt.Sprintf("%.1f%%", ratio)},
+							Label{Text: "", ColumnSpan: 2},
+							Label{Text: "FEC recovery:"},
+							Label{Text: "Enabled (RaptorQ)"},
+							Label{Text: "Encryption:"},
+							Label{Text: func() string {
+								if r.Header.Flags&0x01 != 0 {
+									return "AES-256-GCM"
+								}
+								return "None"
+							}()},
+						},
+					},
+					{
+						Title:  "Comment",
+						Layout: VBox{},
+						Children: []Widget{
+							TextEdit{Text: "(No comment)", ReadOnly: true},
+						},
+					},
+					{
+						Title:  "SFX",
+						Layout: VBox{},
+						Children: []Widget{
+							Label{Text: "Self-extracting module: Not present"},
+						},
+					},
+				},
+			},
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					HSpacer{},
+					PushButton{Text: "OK", OnClicked: func() { dlg.Accept() }},
+				},
+			},
+		},
+	}.Run(owner)
 }
 
 // ─── Sortable File model ───
@@ -526,6 +605,7 @@ type FileModel struct {
 	onUpdate    func()
 	inArchive   bool
 	archivePath string
+	archiveInfo string
 	sortCol     int
 	sortAsc     bool
 }
@@ -580,8 +660,15 @@ func (m *FileModel) SetArchive(path string) {
 		return
 	}
 	files := r.List()
+	fi, _ := os.Stat(path)
+	archiveSize := int64(0)
+	if fi != nil {
+		archiveSize = fi.Size()
+	}
 	m.items = []FileEntry{{Name: "..", Path: filepath.Dir(path), IsDir: true}}
+	var totalOrig uint64
 	for _, f := range files {
+		totalOrig += f.OriginalSize
 		m.items = append(m.items, FileEntry{
 			Name: f.Path,
 			Path: f.Path,
@@ -590,6 +677,12 @@ func (m *FileModel) SetArchive(path string) {
 	}
 	m.inArchive = true
 	m.archivePath = path
+	m.archiveInfo = fmt.Sprintf("NYA archive, unpacked size: %s, packed: %s, ratio: %.0f%%",
+		humanSize(int64(totalOrig)), humanSize(archiveSize),
+		func() float64 {
+			if totalOrig == 0 { return 0 }
+			return float64(archiveSize) / float64(totalOrig) * 100
+		}())
 	m.PublishRowsReset()
 	if m.onUpdate != nil {
 		m.onUpdate()
