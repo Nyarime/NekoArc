@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,25 +13,18 @@ import (
 )
 
 type App struct {
+	ctx           context.Context
 	startupFile   string
 	startupAction string
-	ctx context.Context
 }
 
-func NewApp() *App {
-	return &App{}
-}
+func NewApp() *App { return &App{} }
 
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-}
+func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
-// Greet — test binding
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, Welcome to NekoArc!", name)
 }
-
-// === Pack ===
 
 type PackOptions struct {
 	Input    string `json:"input"`
@@ -50,155 +42,125 @@ type Result struct {
 	Duration float64 `json:"duration"`
 }
 
-// nyarcBin finds nyarc executable (same directory first)
-func nyarcBin() string {
-	exe, _ := os.Executable()
-	dir := filepath.Dir(exe)
-	for _, name := range []string{"nyarc.exe", "nyarc"} {
-		p := filepath.Join(dir, name)
-		if _, err := os.Stat(p); err == nil { return p }
-	}
-	return "nyarc"
-}
-
 func (a *App) Pack(opts PackOptions) Result {
 	start := time.Now()
-
 	if opts.Input == "" {
 		return Result{Success: false, Message: "No input selected"}
 	}
 
 	base := filepath.Base(opts.Input)
-	ext := ".nya"
-	if opts.Format != "" && opts.Format != "nya" {
-		ext = "." + opts.Format
-	}
-	output := strings.TrimSuffix(base, filepath.Ext(base)) + ext
+	output := strings.TrimSuffix(base, filepath.Ext(base)) + ".nya"
 
-	// 使用CLI调用(最简单的集成方式)
-	args := []string{"-a", opts.Input}
 	if opts.Format != "" && opts.Format != "nya" {
-		args = append(args, "--format", opts.Format)
-	}
-	if opts.Level > 0 {
-		args = append(args, "--level", fmt.Sprint(opts.Level))
-	}
-	if opts.FEC > 0 && opts.Format == "nya" {
-		args = append(args, "--fec", fmt.Sprint(opts.FEC))
-	}
-	if opts.Password != "" {
-		args = append(args, "--password", opts.Password)
-	}
-	if opts.Solid {
-		args = append(args, "--solid")
-	}
-	if opts.SFX {
-		args = append(args, "--sfx")
+		output = strings.TrimSuffix(base, filepath.Ext(base)) + "." + opts.Format
 	}
 
-	cmd := exec.Command(nyarcBin(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
+	// 直接调用nya包
+	if opts.Format == "" || opts.Format == "nya" {
+		level := opts.Level
+		if level == 0 { level = 9 }
+		fec := opts.FEC
+		if fec == 0 { fec = 10 }
+
+		w, err := nya.NewWriter(output, level, fec, opts.Solid)
+		if err != nil {
+			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+		}
+		if opts.Password != "" {
+			w.SetPassword([]byte(opts.Password))
+		}
+
+		err = w.AddPath(opts.Input)
+		if err != nil {
+			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+		}
+		err = w.Close()
+		if err != nil {
+			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+		}
+
+		info, _ := os.Stat(output)
+		size := int64(0)
+		if info != nil { size = info.Size() }
+
+		if opts.SFX {
+			nya.CreateSFX(output, "")
+		}
+
 		return Result{
-			Success:  false,
-			Message:  fmt.Sprintf("Pack failed: %v\n%s", err, string(out)),
+			Success: true,
+			Message: fmt.Sprintf("✅ %s → %s (%s)", opts.Input, output, nya.HumanSize(int(size))),
 			Duration: time.Since(start).Seconds(),
 		}
 	}
 
-	return Result{
-		Success:  true,
-		Message:  fmt.Sprintf("Created %s\n%s", output, string(out)),
-		Duration: time.Since(start).Seconds(),
-	}
+	// 非nya格式: 用archiver
+	// 简单起见先调CLI
+	return Result{Success: false, Message: "Non-nya format: use CLI for now", Duration: time.Since(start).Seconds()}
 }
 
-// === Extract ===
-
-func (a *App) Extract(filePath string) Result {
+func (a *App) Extract(filePath string, destDir string) Result {
 	start := time.Now()
+	if filePath == "" {
+		return Result{Success: false, Message: "No file selected"}
+	}
 
 	ext := strings.ToLower(filepath.Ext(filePath))
-	var args []string
-	if ext == ".nya" {
-		args = []string{"-u", filePath}
-	} else {
-		args = []string{"-x", filePath}
+	if destDir != "" {
+		os.Chdir(destDir)
 	}
 
-	cmd := exec.Command(nyarcBin(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
+	if ext == ".nya" {
+		r, err := nya.Open(filePath)
+		if err != nil {
+			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+		}
+		dir := "."
+		if destDir != "" { dir = destDir }
+		err = r.Extract(dir)
+		if err != nil {
+			return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
+		}
 		return Result{
-			Success:  false,
-			Message:  fmt.Sprintf("Extract failed: %v\n%s", err, string(out)),
+			Success: true,
+			Message: fmt.Sprintf("✅ Extracted to %s", dir),
 			Duration: time.Since(start).Seconds(),
 		}
 	}
 
-	return Result{
-		Success:  true,
-		Message:  fmt.Sprintf("Extracted!\n%s", string(out)),
-		Duration: time.Since(start).Seconds(),
-	}
+	// 通解: 用archiver
+	return Result{Success: false, Message: "Non-nya extract: coming soon", Duration: time.Since(start).Seconds()}
 }
-
-// === Repair ===
 
 func (a *App) Repair(filePath string) Result {
 	start := time.Now()
+	if filePath == "" {
+		return Result{Success: false, Message: "No file selected"}
+	}
 
-	cmd := exec.Command(nyarcBin(), "-r", filePath)
-	out, err := cmd.CombinedOutput()
+	result, err := nya.Repair(filePath, "")
 	if err != nil {
-		return Result{
-			Success:  false,
-			Message:  fmt.Sprintf("Repair failed: %v\n%s", err, string(out)),
-			Duration: time.Since(start).Seconds(),
-		}
+		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
 
 	return Result{
-		Success:  true,
-		Message:  fmt.Sprintf("Repaired!\n%s", string(out)),
+		Success: true,
+		Message: fmt.Sprintf("✅ Repaired! %d chunks, %d damaged, %d recovered",
+			result.TotalChunks, result.CorruptedChunks, result.RepairedChunks),
 		Duration: time.Since(start).Seconds(),
 	}
 }
-
-// === Test ===
 
 func (a *App) Test(filePath string) Result {
 	start := time.Now()
-
-	cmd := exec.Command(nyarcBin(), "-t", filePath)
-	out, err := cmd.CombinedOutput()
+	r, err := nya.Open(filePath)
 	if err != nil {
-		return Result{
-			Success:  false,
-			Message:  fmt.Sprintf("Test failed: %v\n%s", err, string(out)),
-			Duration: time.Since(start).Seconds(),
-		}
+		return Result{Success: false, Message: err.Error(), Duration: time.Since(start).Seconds()}
 	}
-
-	return Result{
-		Success:  true,
-		Message:  string(out),
-		Duration: time.Since(start).Seconds(),
-	}
-}
-
-// === File Dialog ===
-
-func (a *App) OpenMultipleFilesDialog() []string {
-	paths, err := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{
-		Title: "Select files",
-		Filters: []rt.FileFilter{
-			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
-			{DisplayName: "All Files", Pattern: "*"},
-		},
-	})
-	if err != nil { return nil }
-	return paths
+	ok := r.Verify()
+	msg := "✅ Archive OK"
+	if !ok { msg = "❌ Archive corrupted" }
+	return Result{Success: ok, Message: msg, Duration: time.Since(start).Seconds()}
 }
 
 func (a *App) OpenFileDialog() string {
@@ -209,27 +171,32 @@ func (a *App) OpenFileDialog() string {
 			{DisplayName: "Archives", Pattern: "*.nya;*.zip;*.rar;*.7z;*.tar;*.gz;*.bz2;*.xz"},
 		},
 	})
-	if err != nil {
-		return ""
-	}
+	if err != nil { return "" }
 	return path
+}
+
+func (a *App) OpenMultipleFilesDialog() []string {
+	paths, err := rt.OpenMultipleFilesDialog(a.ctx, rt.OpenDialogOptions{
+		Title: "Select files",
+		Filters: []rt.FileFilter{
+			{DisplayName: "All Files", Pattern: "*"},
+		},
+	})
+	if err != nil { return nil }
+	return paths
 }
 
 func (a *App) OpenDirectoryDialog() string {
 	path, err := rt.OpenDirectoryDialog(a.ctx, rt.OpenDialogOptions{
-		Title: "Select folder to pack",
+		Title: "Select folder",
 	})
-	if err != nil {
-		return ""
-	}
+	if err != nil { return "" }
 	return path
 }
 
 func (a *App) GetFileInfo(path string) map[string]interface{} {
 	info, err := os.Stat(path)
-	if err != nil {
-		return nil
-	}
+	if err != nil { return nil }
 	return map[string]interface{}{
 		"name":  info.Name(),
 		"size":  info.Size(),
@@ -239,40 +206,6 @@ func (a *App) GetFileInfo(path string) map[string]interface{} {
 	}
 }
 
-func (a *App) Version() string {
-	return "NekoArc v0.1.0 (Nyarc Engine v0.6.0)"
-}
-
-func init() { _ = nya.HumanSize }
-
-func (a *App) GetStartupFile() string {
-	return a.startupFile
-}
-
-func (a *App) GetStartupAction() string {
-	return a.startupAction
-}
-
-// PackWithProgress 带进度的打包
-func (a *App) PackWithProgress(opts PackOptions) Result {
-	start := time.Now()
-	if opts.Input == "" {
-		return Result{Success: false, Message: "No input selected"}
-	}
-
-	// 发送进度事件
-	rt.EventsEmit(a.ctx, "progress", map[string]interface{}{
-		"stage": "packing",
-		"percent": 0,
-	})
-
-	r := a.Pack(opts)
-
-	rt.EventsEmit(a.ctx, "progress", map[string]interface{}{
-		"stage": "done",
-		"percent": 100,
-	})
-
-	r.Duration = time.Since(start).Seconds()
-	return r
-}
+func (a *App) GetStartupFile() string   { return a.startupFile }
+func (a *App) GetStartupAction() string { return a.startupAction }
+func (a *App) Version() string          { return "NekoArc v0.1.0 (Nyarc v0.6.2)" }
