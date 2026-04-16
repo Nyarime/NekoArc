@@ -1,19 +1,58 @@
-# README
+# 🐱 NekoArc
 
-## About
+Next-generation archive manager with self-healing FEC protection.
 
-This is the official Wails Vue template.
+GUI for [Nyarc](https://github.com/Nyarime/Nyarc) — the archive format that recovers from 50% data corruption.
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+## Features
 
-## Live Development
+- 📦 **Pack** — Create .nya, .zip, .tar.gz, .rar archives
+- 📂 **Extract** — Open any format (.nya, .zip, .rar, .7z, .tar, .gz, .bz2, .xz)
+- 🔧 **Repair** — Recover damaged .nya archives (up to 50% corruption)
+- 🔍 **Test** — Verify archive integrity with BLAKE3 checksums
+- 🔒 **Encrypt** — AES-256-GCM password protection
+- ⚡ **Fast** — Zstd compression, 1GB in 30 seconds
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+## Install
 
-## Building
+**Windows:** Download `NekoArc-installer.exe` from [Releases](https://github.com/Nyarime/NekoArc/releases)
 
-To build a redistributable, production mode package, use `wails build`.
+**Linux:**
+```sh
+# From source
+git clone https://github.com/Nyarime/NekoArc.git
+cd NekoArc && wails build
+```
+
+**CLI only:** See [Nyarc](https://github.com/Nyarime/Nyarc)
+
+## Screenshots
+
+Dark theme with drag & drop interface.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Backend | Go + [Nyarc](https://github.com/Nyarime/Nyarc) |
+| Frontend | Vue 3 + Tailwind CSS |
+| Framework | [Wails](https://wails.io) v2 |
+| FEC | [GoFEC](https://github.com/Nyarime/GoFEC) (RaptorQ + LDPC) |
+| Compression | Zstd (klauspost) |
+| Hash | BLAKE3 |
+| Encryption | AES-256-GCM |
+
+## System Requirements
+
+- **Windows:** 7 SP1+ (GUI), XP SP3 planned for CLI
+- **macOS:** 10.13+
+- **Linux:** GTK3 + WebKit2GTK
+
+## License
+
+MIT
+
+## Related
+
+- [Nyarc](https://github.com/Nyarime/Nyarc) — CLI archive tool
+- [GoFEC](https://github.com/Nyarime/GoFEC) — FEC engine (RaptorQ + LDPC)
