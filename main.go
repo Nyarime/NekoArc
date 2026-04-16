@@ -287,7 +287,11 @@ func main() {
 
 	getNyaPath := func() string {
 		if model.inArchive {
-			return model.archivePath
+			if strings.HasSuffix(strings.ToLower(model.archivePath), ".nya") {
+				return model.archivePath
+			}
+			walk.MsgBox(mw, "Info", "Test/Repair only works on .nya archives\nThis is a "+filepath.Ext(model.archivePath)+" archive", walk.MsgBoxIconInformation)
+			return ""
 		}
 		paths := getSelectedPaths()
 		if len(paths) == 1 && strings.HasSuffix(strings.ToLower(paths[0]), ".nya") {

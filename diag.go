@@ -116,6 +116,7 @@ func (d *DiagLog) Show(owner walk.Form, title string) {
 								sb.WriteString(fmt.Sprintf("%s %s\t%s\n", prefix, e.Message, e.File))
 							}
 							walk.Clipboard().SetText(sb.String())
+						walk.MsgBox(dlg, "Copied", "Diagnostic info copied to clipboard", walk.MsgBoxIconInformation)
 						},
 					},
 					PushButton{
