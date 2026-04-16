@@ -112,30 +112,22 @@ func main() {
 			model.NavigateArchiveDir(parent)
 			if table != nil { table.Invalidate() }
 		} else if model.inArchive {
-			// Exit archive: go to the directory containing the archive
-			// Use currentDir (logical path) to find parent
 			parent := filepath.Dir(currentDir)
-			// If parent looks like a temp path, use the real archive's parent
-			if strings.Contains(parent, "nekoarc-open") || strings.Contains(parent, "nekoarc-browse") {
-				// We're in a nested archive - go to parent's parent dir
-				// currentDir is like D:\file.nya\inner.tar.gz
-				// We want to go to D:\file.nya (re-open parent)
-				parts := strings.Split(currentDir, string(filepath.Separator))
-				for i := len(parts) - 1; i >= 0; i-- {
-					if isArchiveFile(parts[i]) {
-						parentPath := strings.Join(parts[:i+1], string(filepath.Separator))
-						if _, err := os.Stat(parentPath); err == nil {
-							if strings.HasSuffix(strings.ToLower(parentPath), ".nya") {
-								navigateArchive(parentPath)
-							} else {
-								navigateGenericArchive(parentPath)
-							}
-							return
-						}
+			// Check if parent is an archive file → re-open it
+			if isArchiveFile(parent) {
+				if _, err := os.Stat(parent); err == nil {
+					if strings.HasSuffix(strings.ToLower(parent), ".nya") {
+						navigateArchive(parent)
+					} else {
+						navigateGenericArchive(parent)
 					}
+					currentDir = parent
+					if addressBar != nil { addressBar.SetText(parent) }
+					return
 				}
 			}
-			navigate(parent)
+			// Otherwise navigate to parent directory
+			navigate(filepath.Dir(parent))
 		} else if currentDir != "" {
 			parent := filepath.Dir(currentDir)
 			if parent == currentDir {
@@ -1210,6 +1202,8 @@ func (m *FileModel) NavigateArchiveDir(subDir string) {
 
 func (m *FileModel) filterArchiveEntries() {
 	prefix := m.archiveSubDir
+	// Normalize to forward slashes
+	prefix = strings.ReplaceAll(prefix, "\\", "/")
 	if prefix != "" && !strings.HasSuffix(prefix, "/") {
 		prefix += "/"
 	}
@@ -1218,7 +1212,9 @@ func (m *FileModel) filterArchiveEntries() {
 	seen := make(map[string]bool)
 
 	for _, e := range m.allArchiveEntries {
-		name := e.Name
+		name := strings.ReplaceAll(e.Name, "\\", "/") // normalize
+		// Strip trailing /
+		name = strings.TrimSuffix(name, "/")
 		// Strip prefix
 		if prefix != "" {
 			if !strings.HasPrefix(name, prefix) { continue }
@@ -1226,10 +1222,8 @@ func (m *FileModel) filterArchiveEntries() {
 		}
 		if name == "" { continue }
 
-		// Check if this is a direct child or deeper
 		slashIdx := strings.Index(name, "/")
 		if slashIdx >= 0 {
-			// It's in a subdirectory - show the directory
 			dirName := name[:slashIdx]
 			if !seen[dirName] {
 				seen[dirName] = true
@@ -1239,7 +1233,6 @@ func (m *FileModel) filterArchiveEntries() {
 				})
 			}
 		} else {
-			// Direct child file
 			if !seen[name] {
 				seen[name] = true
 				entry := e
