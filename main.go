@@ -861,15 +861,20 @@ func (m *FileModel) Image(row int) interface{} {
 	}
 	item := m.items[row]
 	if item.Name == ".." || item.IsDir {
-		if item.Path != "" {
+		if item.Path != "" && filepath.IsAbs(item.Path) {
 			return item.Path
 		}
-		// For "My Computer" level, return a generic folder
-		return "C:\\Windows"
+		return nil // no icon for virtual dirs
 	}
-	// For archive entries with relative paths, create a dummy path with correct extension
-	if m.inArchive && !filepath.IsAbs(item.Path) {
-		return "C:\\dummy" + filepath.Ext(item.Name)
+	// For archive entries, return the path string as-is
+	// walk will extract icon by extension even for non-existent paths
+	if m.inArchive {
+		// Use extension to get icon: walk resolves via SHGetFileInfo with SHGFI_USEFILEATTRIBUTES
+		ext := filepath.Ext(item.Name)
+		if ext != "" {
+			return "file" + ext // e.g. "file.docx" - walk uses extension only
+		}
+		return nil
 	}
 	return item.Path
 }
