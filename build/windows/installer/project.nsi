@@ -153,6 +153,18 @@ Section "Context Menu"
     WriteRegStr HKCR "NekoArc.Archive\shell\NekoArc.ExtractHere" "Icon" '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
     WriteRegStr HKCR "NekoArc.Archive\shell\NekoArc.ExtractHere\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "--extract" "%1"'
     
+
+    ; Windows 11 compatibility: Register verbs on file types directly
+    ; These appear in the new Win11 context menu
+    WriteRegStr HKCR ".nya\shell\NekoArc" "" "用 NekoArc 打开"
+    WriteRegStr HKCR ".nya\shell\NekoArc\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "%1"'
+    
+    WriteRegStr HKCR ".nya\shell\NekoArc.Repair" "" "用 NekoArc 修复"
+    WriteRegStr HKCR ".nya\shell\NekoArc.Repair\command" "" '"$INSTDIR\${PRODUCT_EXECUTABLE}" "--repair" "%1"'
+    
+    ; Register app path (helps Windows find the exe)
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\NekoArc.exe" "" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+
     ; .nya专属右键: "修复归档"
     WriteRegStr HKCR "NekoArc.nya\shell\NekoArc.Repair" "" "用 NekoArc 修复(&R)"
     WriteRegStr HKCR "NekoArc.nya\shell\NekoArc.Repair" "Icon" '"$INSTDIR\${PRODUCT_EXECUTABLE}"'
