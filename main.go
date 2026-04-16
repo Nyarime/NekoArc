@@ -112,7 +112,21 @@ func main() {
 		}
 		item := model.items[idx]
 		if item.Name == ".." {
-			goUp()
+			if model.inArchive && model.archiveSubDir != "" {
+				// Go up within archive
+				parent := ""
+				if idx := strings.LastIndex(model.archiveSubDir, "/"); idx >= 0 {
+					parent = model.archiveSubDir[:idx]
+				}
+				model.NavigateArchiveDir(parent)
+				if table != nil { table.Invalidate() }
+			} else {
+				goUp()
+			}
+		} else if item.IsDir && model.inArchive && model.allArchiveEntries != nil {
+			// Navigate into subdirectory within archive
+			model.NavigateArchiveDir(item.Path)
+			if table != nil { table.Invalidate() }
 		} else if item.IsDir {
 			navigate(item.Path)
 		} else if isArchiveFile(item.Path) && !model.inArchive {
@@ -886,9 +900,11 @@ type FileModel struct {
 	walk.TableModelBase
 	items       []FileEntry
 	onUpdate    func()
-	inArchive   bool
-	archivePath string
-	archiveInfo string
+	inArchive        bool
+	archivePath      string
+	archiveInfo      string
+	allArchiveEntries []FileEntry
+	archiveSubDir    string
 	sortCol     int
 	sortAsc     bool
 }
@@ -1085,10 +1101,11 @@ func (m *FileModel) doSort() {
 }
 
 func (m *FileModel) SetGenericArchive(path string, entries []FileEntry) {
-	m.items = []FileEntry{{Name: "..", Path: filepath.Dir(path), IsDir: true}}
-	m.items = append(m.items, entries...)
+	m.allArchiveEntries = entries
+	m.archiveSubDir = ""
 	m.inArchive = true
 	m.archivePath = path
+	m.filterArchiveEntries()
 
 	var totalSize int64
 	for _, e := range entries {
@@ -1102,4 +1119,54 @@ func (m *FileModel) SetGenericArchive(path string, entries []FileEntry) {
 		filepath.Ext(path), len(entries), humanSize(totalSize), humanSize(archiveSize))
 	m.PublishRowsReset()
 	if m.onUpdate != nil { m.onUpdate() }
+}
+
+// NavigateArchiveDir navigates into a subdirectory within the archive
+func (m *FileModel) NavigateArchiveDir(subDir string) {
+	m.archiveSubDir = subDir
+	m.filterArchiveEntries()
+	m.PublishRowsReset()
+	if m.onUpdate != nil { m.onUpdate() }
+}
+
+func (m *FileModel) filterArchiveEntries() {
+	prefix := m.archiveSubDir
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	m.items = []FileEntry{{Name: "..", Path: "", IsDir: true}}
+	seen := make(map[string]bool)
+
+	for _, e := range m.allArchiveEntries {
+		name := e.Name
+		// Strip prefix
+		if prefix != "" {
+			if !strings.HasPrefix(name, prefix) { continue }
+			name = name[len(prefix):]
+		}
+		if name == "" { continue }
+
+		// Check if this is a direct child or deeper
+		slashIdx := strings.Index(name, "/")
+		if slashIdx >= 0 {
+			// It's in a subdirectory - show the directory
+			dirName := name[:slashIdx]
+			if !seen[dirName] {
+				seen[dirName] = true
+				fullDir := prefix + dirName
+				m.items = append(m.items, FileEntry{
+					Name: dirName, Path: fullDir, IsDir: true,
+				})
+			}
+		} else {
+			// Direct child file
+			if !seen[name] {
+				seen[name] = true
+				entry := e
+				entry.Name = name
+				m.items = append(m.items, entry)
+			}
+		}
+	}
 }
