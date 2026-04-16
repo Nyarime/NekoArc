@@ -219,7 +219,16 @@ func doRepair(path string) (*DiagLog, int, int, int, error) {
 }
 
 func humanSize(b int64) string {
-	return nya.HumanSize(int(b))
+	if b < 1024 {
+		return fmt.Sprintf("%dB", b)
+	} else if b < 1024*1024 {
+		return fmt.Sprintf("%.1fKB", float64(b)/1024)
+	} else if b < 1024*1024*1024 {
+		return fmt.Sprintf("%.1fMB", float64(b)/(1024*1024))
+	} else if b < 1024*1024*1024*1024 {
+		return fmt.Sprintf("%.1fGB", float64(b)/(1024*1024*1024))
+	}
+	return fmt.Sprintf("%.2fTB", float64(b)/(1024*1024*1024*1024))
 }
 
 // copyFileOrDir copies a file or directory

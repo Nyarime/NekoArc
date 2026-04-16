@@ -363,6 +363,32 @@ func main() {
 					Action{Text: "Archive info", OnTriggered: func() { doInfoFn() }},
 					Separator{},
 					Action{Text: "Open", OnTriggered: func() { activateItem() }},
+					Action{Text: "Rename", OnTriggered: func() {
+						if !model.inArchive { return }
+						paths := getSelectedPaths()
+						if len(paths) != 1 { return }
+						// Simple rename dialog
+						var dlg *walk.Dialog
+						var nameEdit *walk.LineEdit
+						Dialog{
+							AssignTo: &dlg,
+							Title: "Rename",
+							MinSize: Size{Width: 350, Height: 100},
+							Layout: VBox{},
+							Children: []Widget{
+								LineEdit{AssignTo: &nameEdit, Text: filepath.Base(paths[0])},
+								Composite{Layout: HBox{}, Children: []Widget{
+									HSpacer{},
+									PushButton{Text: "OK", OnClicked: func() {
+										// TODO: implement rename inside archive
+										walk.MsgBox(dlg, "Info", "Rename inside archive coming soon", walk.MsgBoxIconInformation)
+										dlg.Accept()
+									}},
+									PushButton{Text: "Cancel", OnClicked: func() { dlg.Cancel() }},
+								}},
+							},
+						}.Run(mw)
+					}},
 					Action{Text: "Copy to...", OnTriggered: func() {
 						paths := getSelectedPaths()
 						if len(paths) == 0 { return }
@@ -824,8 +850,15 @@ func (m *FileModel) Image(row int) interface{} {
 	}
 	item := m.items[row]
 	if item.Name == ".." || item.IsDir {
-		// Return any existing directory path for folder icon
-		return item.Path
+		if item.Path != "" {
+			return item.Path
+		}
+		// For "My Computer" level, return a generic folder
+		return "C:\\Windows"
+	}
+	// For archive entries with relative paths, create a dummy path with correct extension
+	if m.inArchive && !filepath.IsAbs(item.Path) {
+		return "C:\\dummy" + filepath.Ext(item.Name)
 	}
 	return item.Path
 }
