@@ -133,7 +133,7 @@ func main() {
 					if _, err := os.Stat(extracted); err == nil {
 						navigateGenericArchive(extracted)
 						// Fix address bar to show logical path
-						logicalPath := model.archivePath + "\" + item.Name
+						logicalPath := model.archivePath + string(filepath.Separator) + item.Name
 						currentDir = logicalPath
 						if addressBar != nil { addressBar.SetText(logicalPath) }
 					}
