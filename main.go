@@ -618,31 +618,38 @@ func showPackDialog(owner walk.Form, files []string) {
 					PushButton{
 						Text: "OK",
 						OnClicked: func() {
-							// Validate password
 							if passwordEdit.Text() != "" && passwordEdit.Text() != passwordConfirm.Text() {
 								walk.MsgBox(owner, "Error", "Passwords do not match", walk.MsgBoxIconError)
 								return
 							}
-							outDir := destDirEdit.Text()
-							log, err := doPack(PackOptions{
-								Inputs:   files,
-								Output:   outDir,
-								Level:    int(levelEdit.Value()),
-								FEC:      int(fecEdit.Value()),
-								Password: passwordEdit.Text(),
-								Solid:    solidCheck.Checked(),
-								SFX:      sfxCheck.Checked(),
-								SplitSize: splitEdit.Text(),
-							})
-							if err != nil {
-								walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
-							} else {
-								walk.MsgBox(owner, "Done", "Archive created successfully", walk.MsgBoxIconInformation)
-							}
-							if log.HasIssues() {
-								log.Show(owner, "Pack")
-							}
 							dlg.Accept()
+
+							// Run pack in background
+							outDir := destDirEdit.Text()
+							opts := PackOptions{
+								Inputs:    files,
+								Output:    outDir,
+								Level:     int(levelEdit.Value()),
+								FEC:       int(fecEdit.Value()),
+								Password:  passwordEdit.Text(),
+								Solid:     solidCheck.Checked(),
+								SFX:       sfxCheck.Checked(),
+								SplitSize: splitEdit.Text(),
+							}
+
+							go func() {
+								log, err := doPack(opts)
+								owner.Synchronize(func() {
+									if err != nil {
+										walk.MsgBox(owner, "Error", err.Error(), walk.MsgBoxIconError)
+									} else {
+										walk.MsgBox(owner, "Done", "Archive created successfully", walk.MsgBoxIconInformation)
+									}
+									if log.HasIssues() {
+										log.Show(owner, "Pack")
+									}
+								})
+							}()
 						},
 					},
 					PushButton{
