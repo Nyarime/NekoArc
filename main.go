@@ -32,6 +32,10 @@ func main() {
 	initIcons()
 
 	navigate := func(dir string) {
+		// Fix path case on Windows (D:\nekoarc → D:\NekoArc)
+		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+			dir = resolved
+		}
 		currentDir = dir
 		if addressBar != nil {
 			addressBar.SetText(currentDir)
