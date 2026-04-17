@@ -449,7 +449,7 @@ func main() {
 				Text: "&Help",
 				Items: []MenuItem{
 					Action{Text: "&About NekoArc", OnTriggered: func() {
-						walk.MsgBox(mw, "About NekoArc", "NekoArc v0.7.0\n\nPowered by Nyarc v0.7.0\nZstd compression + RaptorQ FEC self-repair\nBLAKE3 integrity verification\n\nhttps://github.com/Nyarime/NekoArc\nhttps://github.com/Nyarime/Nyarc", walk.MsgBoxIconInformation)
+						walk.MsgBox(mw, "About NekoArc", "NekoArc v0.8.0\n\nPowered by Nyarc Pro v1.1.0\nZstd + LZMA2 compression\nRaptorQ FEC self-repair\nBLAKE3 integrity verification\n\nhttps://github.com/Nyarime/NekoArc", walk.MsgBoxIconInformation)
 					}},
 				},
 			},
@@ -644,6 +644,7 @@ func showPackDialog(owner walk.Form, files []string) {
 	var dlg *walk.Dialog
 	var archiveNameEdit *walk.LineEdit
 	var levelEdit *walk.NumberEdit
+	var methodCombo *walk.ComboBox
 	var fecEdit *walk.NumberEdit
 	var passwordEdit *walk.LineEdit
 	var passwordConfirm *walk.LineEdit
@@ -716,6 +717,8 @@ func showPackDialog(owner walk.Form, files []string) {
 								Title:  "Compression",
 								Layout: Grid{Columns: 2},
 								Children: []Widget{
+									Label{Text: "Method:"},
+									ComboBox{AssignTo: &methodCombo, Model: []string{"Zstd (fast)", "LZMA2 (best ratio)"}, CurrentIndex: 0},
 									Label{Text: "Compression level (1-19):"},
 									NumberEdit{AssignTo: &levelEdit, Value: 9, MinValue: 1, MaxValue: 19},
 								},
